@@ -1,0 +1,43 @@
+# Baseline experiment config (stub -- consumed by backtest/runner.py from
+# Milestone 5 on; fields already used by the prototype are marked).
+# Every result artifact must log this config + the git commit hash.
+
+experiment:
+  name: baseline
+  seed: 20260702            # used by the synthetic engine / harness
+
+data:
+  provider: yfinance        # yfinance | thetadata | optionmetrics
+  cache_root: cache
+  universe: [SPY]
+  start: 2024-01-01
+  end: 2026-06-30
+
+rates:
+  mode: constant            # constant | curve (Milestone 2)
+  risk_free: 0.04           # used by data/snapshot.py IV demo
+
+quotes:
+  price: mid                # hard rule: mid-or-drop in replay mode
+  min_volume: 10
+  min_open_interest: 100
+  moneyness_band: [0.90, 1.10]
+  dte_buckets: [[7, 30], [30, 90], [90, 180]]
+
+costs:
+  # every backtest runs at ALL of these; results reported per level
+  levels:
+    - {name: zero,        option_half_spread: 0.0, share_cost: 0.0}
+    - {name: half_spread, option_half_spread: 0.5, share_cost: 0.005}
+    - {name: full_spread, option_half_spread: 1.0, share_cost: 0.01}
+
+vol:
+  forecast: {model: ewma, lambda: 0.94}     # CAUSAL only
+  realized: {estimator: close_to_close}     # EX-POST only (oracle/attribution)
+
+policies:                   # Milestone 4
+  - hold_to_expiry
+  - fixed_time
+  - oracle                  # NON-TRADABLE upper bound, quarantined
+  - theta_gamma_threshold
+  - trailing_stop

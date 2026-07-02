@@ -1,0 +1,11 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+dist/
+# raw data cache is immutable but local; do not version it
+cache/
+reports/*.png
+.DS_Store
