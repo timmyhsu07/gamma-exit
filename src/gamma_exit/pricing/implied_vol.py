@@ -39,9 +39,14 @@ def implied_vol(price, s, k, t, r, q=0.0, kind: str = "call"):
     """Implied vol for scalar or array inputs (broadcast). NaN where unsolvable."""
     b = np.broadcast_arrays(*map(np.asarray, (price, s, k, t, r, q)), subok=False)
     if b[0].ndim == 0:
-        return _implied_vol_scalar(*(float(x) for x in b), kind)
+        p_, s_, k_, t_, r_, q_ = (float(x) for x in b)
+        return _implied_vol_scalar(p_, s_, k_, t_, r_, q_, kind)
     out = np.empty(b[0].shape)
-    flat = [x.ravel() for x in b]
-    for i in range(flat[0].size):
-        out.ravel()[i] = _implied_vol_scalar(*(float(x[i]) for x in flat), kind)
+    out_flat = out.ravel()  # view: out is freshly allocated C-contiguous
+    pf, sf, kf, tf, rf, qf = (x.ravel() for x in b)
+    for i in range(pf.size):
+        out_flat[i] = _implied_vol_scalar(
+            float(pf[i]), float(sf[i]), float(kf[i]), float(tf[i]), float(rf[i]),
+            float(qf[i]), kind,
+        )
     return out

@@ -13,6 +13,7 @@ final data source):
 from __future__ import annotations
 
 from datetime import date, datetime, timezone
+from typing import Literal
 
 import pandas as pd
 import yfinance as yf
@@ -45,13 +46,22 @@ class YFinanceProvider(Provider):
     def fetch_chain(self, underlying: str, max_expiries: int | None = None) -> pd.DataFrame:
         ticker = yf.Ticker(underlying)
         asof = datetime.now(timezone.utc)
-        spot = _opt_float(ticker.history(period="1d")["Close"].iloc[-1])
+        hist = ticker.history(period="1d")
+        if hist.empty:
+            raise ValueError(
+                f"no underlying history for {underlying!r} -- "
+                "invalid ticker or provider outage"
+            )
+        spot = _opt_float(hist["Close"].iloc[-1])
 
         expiries = ticker.options
+        if not expiries:
+            raise ValueError(f"no listed option expiries for {underlying!r}")
         if max_expiries is not None:
             expiries = expiries[:max_expiries]
 
         records: list[OptionRecord] = []
+        kind: Literal["call", "put"]
         for expiry_str in expiries:
             chain = ticker.option_chain(expiry_str)
             expiry = date.fromisoformat(expiry_str)
@@ -79,6 +89,11 @@ class YFinanceProvider(Provider):
     def fetch_underlying(self, ticker_sym: str, start: date, end: date) -> pd.DataFrame:
         ticker = yf.Ticker(ticker_sym)
         hist = ticker.history(start=str(start), end=str(end), auto_adjust=False)
+        if hist.empty:
+            raise ValueError(
+                f"no underlying history for {ticker_sym!r} in [{start}, {end}) -- "
+                "invalid ticker, empty range, or provider outage"
+            )
         records = [
             UnderlyingBar(
                 provider=self.name,

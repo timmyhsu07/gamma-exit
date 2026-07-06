@@ -18,9 +18,13 @@ dPnL ≈ ½ · Γ · S² · (σ_realized² − σ_implied²) · dt
   engine reconciles pathwise against the closed-form identity; drift-invariance
   verified empirically (the paper's `−(μ−r)S²Γ` term does not survive
   self-financing accounting).
-- **Milestone 2 — prototyped**: canonical schema, write-once Parquet/DuckDB
-  cache, yfinance provider (live chain snapshots + underlying bars + IV
-  recomputation from quotes). ThetaData / OptionMetrics readers pending.
+- **Milestone 2 — foundation landed** (eng review 2026-07-02, 18 decisions):
+  shared mark-agnostic accounting core (`replay_hedged_position` — the M1
+  validation now covers the exact loop replay mode will use), single
+  trading-day time basis (`conventions.py`), typed config loader wired into
+  the harness and snapshot demo, dividend-yield accounting validated, offline
+  provider fixtures, CI, daily snapshot automation. ThetaData / OptionMetrics
+  readers deferred until data access exists (`TODOS.md` TD-1).
 - Milestones 3–6 (real-data replay, policies + quarantined oracle, walk-forward
   backtest, paper-figure reproduction): not started.
 
@@ -34,10 +38,18 @@ source .venv/bin/activate
 ## Run things
 
 ```bash
-pytest                                        # full validation suite (~2 s)
+pytest                                        # full validation suite (~5 s)
 python -m gamma_exit.validation.harness       # identity-convergence table + plot
-python -m gamma_exit.data.snapshot SPY --max-expiries 3   # live yfinance demo
+python -m gamma_exit.data.snapshot            # live demo, ^SPX from config
 ```
+
+Everything takes `--config` (default `configs/baseline.yaml`) — the YAML is
+the single source of truth for seeds, rates, universe, quote filters, and
+cost levels; code carries no copies of those numbers.
+
+To accumulate daily chain snapshots automatically (they become a validation
+slice against the paid historical data later), see `scripts/daily_snapshot.sh`
+and the launchd template next to it — schedule it mid US market session.
 
 The harness writes `reports/pnl_identity_convergence.png`. The snapshot demo
 writes immutable Parquet under `cache/` (second run on the same key refuses to
@@ -52,7 +64,9 @@ overwrite — that is the point).
 | Greeks match QuantLib to 1e-8 or tighter | `tests/test_greeks_vs_quantlib.py` |
 | Realized vol (ex-post) vs forecast vol (causal) never crossed | `vol/realized.py` vs `vol/forecast.py` |
 | Transaction costs first-class, monotone | `tests/test_cost_model.py`, `configs/baseline.yaml` |
-| Raw data immutable (write-once cache) | `data/cache.py`, `tests/test_cache_and_schema.py` |
+| Raw data immutable (write-once cache; bad pulls quarantined, never deleted) | `data/cache.py`, `tests/test_cache_and_schema.py` |
+| One time basis: trading-day years (252/yr), converted only at the data boundary | `conventions.py`, `tests/test_conventions_and_config.py` |
+| All runs config-driven; YAML typos fail at load time | `config.py`, `tests/test_conventions_and_config.py` |
 | Mid-or-drop quote policy (last-trade only in the labeled demo fallback) | `data/schema.py::OptionRecord.mid` |
 | Oracle quarantine (non-tradable ceiling) | `strategy/__init__.py` (Milestone 4) |
 
@@ -64,10 +78,11 @@ overwrite — that is the point).
    at observed mids instead, which adds a vega P&L term the identity does not
    contain. The identity test is exactly as strong as this assumption is
    explicit.
-2. **Constant σ_real, σ_IV, r, μ; GBM; no dividends in the synthetic engine.**
-   The pricing layer supports a continuous dividend yield `q`, but the
-   Milestone 1 reconciliation runs at q=0. Dividends matter for SPY replays and
-   enter in Milestone 3.
+2. **Constant σ_real, σ_IV, r, μ; GBM.** Continuous dividend yield `q` is now
+   validated end-to-end (the accounting core credits the dividend flow on the
+   hedge shares; `TestDividendYield` reconciles it against the identity).
+   Discrete cash dividends for single names remain a Milestone 3 concern —
+   the primary ^SPX universe sidesteps them entirely.
 3. **Hedging on the simulation grid.** Paths are exact GBM at grid points, and
    the hedge rebalances at every grid point, so "rehedge frequency" and "grid
    resolution" are the same knob. The identity integral is a left-endpoint
@@ -88,17 +103,23 @@ overwrite — that is the point).
    bid/ask/OI (mid-based filtering then correctly yields zero usable quotes),
    and Yahoo's `impliedVolatility` column is unreliable (stored as
    `provider_iv`, advisory only; we recompute from quotes).
-8. **Prototype risk-free rate is a constant** (`configs/baseline.yaml`); a real
-   short-rate series arrives with Milestone 2.
+8. **Risk-free rate is a constant from config** (`rates.mode: constant`); a
+   real short-rate series is an upgrade path (`rates.mode: curve`), needed
+   before multi-year replays.
+9. **Interest accrues on the trading clock** — a deliberate, documented
+   approximation worth ~1.5% *of r* on the discount exponent (sub-bp price
+   impact at r ≤ 5%); see `conventions.py` for when to revisit.
 
 ## Layout
 
 ```
 src/gamma_exit/
+├── conventions.py  THE time basis: trading-day years, 252/yr (decision 3A)
+├── config.py       typed loader for configs/*.yaml (single source of truth)
 ├── pricing/      BS price, IV solver, Greeks (QuantLib-validated)
-├── pnl/          delta-hedged P&L engine (synthetic now; replay in M3)
+├── pnl/          shared self-financing accounting core + synthetic adapter
 ├── vol/          realized (EX-POST ONLY) vs forecast (CAUSAL ONLY)
-├── data/         schema, write-once cache, providers (yfinance now)
+├── data/         schema, write-once cache + quarantine, providers (yfinance)
 ├── strategy/     exit policies incl. quarantined oracle (M4)
 ├── backtest/     walk-forward runner (M5)
 ├── analytics/    metrics, regimes (M5)

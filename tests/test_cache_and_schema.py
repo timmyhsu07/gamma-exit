@@ -65,3 +65,30 @@ class TestWriteOnceCache:
             "select kind, count(*) n from read_parquet('{root}/chains/**/*.parquet') group by 1"
         )
         assert sorted(out["kind"]) == ["call", "put"]
+
+    def test_query_tolerates_braces_in_sql(self, tmp_path):
+        # regression for decision 7A: str.format would KeyError on DuckDB
+        # struct literals; literal {root} replacement must not
+        cache = WriteOnceCache(tmp_path)
+        cache.write(options_to_frame([_rec()]), "chains", "SPY/x")
+        out = cache.query(
+            "select {'k': kind} s, count(*) n "
+            "from read_parquet('{root}/chains/**/*.parquet') group by 1"
+        )
+        assert len(out) == 1
+
+    def test_quarantine_preserves_bytes_and_frees_key(self, tmp_path):
+        cache = WriteOnceCache(tmp_path)
+        df = options_to_frame([_rec()])
+        cache.write(df, "underlying", "SPY/2026")
+        moved = cache.quarantine("underlying", "SPY/2026", "test: bad pull")
+        # key is free for a re-pull, original bytes survive with a reason file
+        assert not cache.exists("underlying", "SPY/2026")
+        pd.testing.assert_frame_equal(pd.read_parquet(moved), df)
+        reason = moved.with_suffix(".reason.txt").read_text()
+        assert "bad pull" in reason
+        cache.write(df, "underlying", "SPY/2026")  # re-pull succeeds
+
+    def test_quarantine_missing_key_raises(self, tmp_path):
+        with pytest.raises(FileNotFoundError):
+            WriteOnceCache(tmp_path).quarantine("underlying", "SPY/none", "x")

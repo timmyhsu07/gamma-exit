@@ -9,7 +9,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-TRADING_DAYS = 252
+from gamma_exit.conventions import TRADING_DAYS_PER_YEAR as TRADING_DAYS
 
 
 def ewma_vol(closes: pd.Series, lam: float = 0.94, annualize: bool = True) -> pd.Series:

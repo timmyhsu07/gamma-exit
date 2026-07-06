@@ -1,30 +1,37 @@
-"""Synthetic delta-hedged P&L engine and the gamma-vega identity integral.
+"""Delta-hedged P&L: one self-financing accounting core, two thin adapters.
 
-The trade being simulated
--------------------------
-At t=0: buy one European option priced at Black-Scholes with sigma_iv, short
-delta_0 shares, park the net proceeds in a money-market account accruing r.
-At each rehedge date: mark the option at BS(sigma_iv), reset the share hedge
-to the current BS delta, and let cash absorb the trades. The portfolio is
-self-financing and starts at exactly zero value.
+Eng-review decision 1A: the accounting loop below is the ONLY code in this
+project that turns positions into P&L. Synthetic mode (Milestone 1) feeds it
+Black-Scholes marks on simulated paths; replay mode (Milestone 3) feeds it
+observed mid quotes on real paths. The Milestone 1 identity tests therefore
+validate the exact loop that produces real-data results.
 
-The identity being tested (Milestone 1 gate)
---------------------------------------------
+    SYNTHETIC adapter                REPLAY adapter (M3)
+    marks = BS(sigma_iv)             marks = observed mids
+    deltas = BS-delta(sigma_iv)      deltas = BS-delta(day's IV)
+            \\                          /
+             v                        v
+        replay_hedged_position()  <- the validated core
+             |
+             v
+        HedgeResult (pnl_path, pnl, trading_cost)
+
+The identity being tested (Milestone 1 gate, tests/test_pnl_identity.py)
+------------------------------------------------------------------------
 With the true path following dS = mu S dt + sigma_real S dW and the hedge run
 at sigma_iv, continuous-time self-financing accounting gives, PATHWISE:
 
     X_T = integral_0^T e^{r (T-u)} * 1/2 * Gamma_iv(u, S_u) * S_u^2
               * (sigma_real^2 - sigma_iv^2) du
 
-Two things matter and are asserted in tests/test_pnl_identity.py:
-1. Discrete-hedge P&L converges to this integral as rehedge frequency rises.
-2. The drift mu does NOT appear. The paper's extra -(mu - r) S^2 Gamma term
-   is an artifact of its non-self-financing accounting; we test empirically
-   that no drift bias exists (see PROJECT_BRIEF.md section 1.3).
+The drift mu does NOT appear; the source paper's -(mu - r) S^2 Gamma term is
+an artifact of non-self-financing accounting, and tests assert its absence.
+With a continuous dividend yield q the same identity holds provided the cash
+account receives the dividend flow on the share position (the core does).
 
-Transaction costs enter as a proportional cost per share traded
-(cost_per_share = half-spread in dollars), applied to every hedge trade, the
-initial hedge, and the final unwind. cost=0 recovers the frictionless identity.
+All times are TRADING-DAY YEARS (see gamma_exit.conventions).
+Costs are proportional per share traded (cost_per_share = half-spread in
+dollars), charged on the initial hedge, every rebalance, and the final unwind.
 """
 
 from __future__ import annotations
@@ -65,50 +72,53 @@ def simulate_gbm_paths(
 
 @dataclass(frozen=True)
 class HedgeResult:
-    """Per-path outputs of a synthetic delta-hedged replay."""
+    """Per-path outputs of a delta-hedged replay."""
 
     pnl: np.ndarray  # (n_paths,) final portfolio value X_T (starts at 0)
-    identity_integral: np.ndarray  # (n_paths,) closed-form pathwise integral
-    pnl_path: np.ndarray  # (n_paths, n_steps + 1) X_t through time
+    pnl_path: np.ndarray  # (n_paths, n_grid) X_t through time
     trading_cost: np.ndarray  # (n_paths,) total dollars paid in costs
 
 
-def delta_hedge_synthetic(
-    paths: np.ndarray,
-    k: float,
-    t_years: float,
+def replay_hedged_position(
+    times: np.ndarray,
+    underlying: np.ndarray,
+    option_marks: np.ndarray,
+    hedge_ratios: np.ndarray,
     r: float,
-    sigma_iv: float,
-    sigma_real: float,
-    kind: str = "call",
     q: float = 0.0,
     cost_per_share: float = 0.0,
 ) -> HedgeResult:
-    """Replay a long-option delta hedge along simulated paths.
+    """THE self-financing accounting core (mark-agnostic; see module docstring).
 
-    The option is marked at BS(sigma_iv) throughout and settles to payoff at T.
-    Rehedging happens at every grid point of `paths`; to study frequency,
-    simulate paths with different n_steps.
+    Inputs (n_paths, n_grid), times (n_grid,) in trading-day years:
+    - option_marks[:, j]  value of the long option at t_j; the FINAL column
+      must be the settlement/exit value (payoff at expiry, exit mid on close).
+    - hedge_ratios[:, j]  the delta to be short over (t_j, t_{j+1}]; the final
+      column is unused (the position unwinds at the last grid point).
+
+    Accounting per step (t_{j-1} -> t_j], vectorized across paths:
+
+        cash *= e^{r dt}                       # money-market accrual
+        cash += shares * S_{j-1} * (e^{q dt}-1)  # dividend flow on shares
+        X_j   = mark_j + shares * S_j + cash   # portfolio value at t_j
+        rebalance: shares -> -hedge_ratios[:, j], cash absorbs the trade,
+                   costs charged per share traded (final step: full unwind)
+
+    X_0 = 0 minus the initial hedge cost; every later X_j is realizable value.
     """
-    n_paths, n_grid = paths.shape
-    n_steps = n_grid - 1
-    dt = t_years / n_steps
-    times = np.linspace(0.0, t_years, n_grid)
-    ttm = t_years - times  # time to maturity at each grid point
+    n_paths, n_grid = underlying.shape
+    if option_marks.shape != underlying.shape or hedge_ratios.shape != underlying.shape:
+        raise ValueError("underlying, option_marks, hedge_ratios must share one shape")
+    if times.shape != (n_grid,):
+        raise ValueError(f"times must have shape ({n_grid},), got {times.shape}")
 
-    # Option marks and deltas on the whole grid (bs_price handles ttm == 0).
-    v = np.empty_like(paths)
-    dlt = np.empty_like(paths)
-    for j in range(n_grid):
-        v[:, j] = bs_price(paths[:, j], k, ttm[j], r, sigma_iv, q, kind)
-        dlt[:, j] = bs_delta(paths[:, j], k, ttm[j], r, sigma_iv, q, kind)
+    dts = np.diff(times)
+    if (dts <= 0).any():
+        raise ValueError("times must be strictly increasing")
 
-    growth = np.exp(r * dt)
-
-    # t=0: pay V0 for the option, receive the short-sale proceeds -shares*S0.
-    # Portfolio value X0 = V0 + shares*S0 + cash = 0 (minus initial trading cost).
-    shares = -dlt[:, 0]
-    cash = -v[:, 0] - shares * paths[:, 0]
+    # t=0: pay mark_0 for the option, receive the short-sale proceeds.
+    shares = -hedge_ratios[:, 0]
+    cash = -option_marks[:, 0] - shares * underlying[:, 0]
     cost = np.abs(shares) * cost_per_share
     cash -= cost
 
@@ -116,12 +126,14 @@ def delta_hedge_synthetic(
     pnl_path[:, 0] = -cost
 
     for j in range(1, n_grid):
-        cash *= growth
-        s_j = paths[:, j]
-        # mark portfolio before rebalancing (same value after: trades are self-financing)
-        pnl_path[:, j] = v[:, j] + shares * s_j + cash
-        if j < n_steps:
-            new_shares = -dlt[:, j]
+        dt = dts[j - 1]
+        cash *= np.exp(r * dt)
+        if q != 0.0:
+            cash += shares * underlying[:, j - 1] * np.expm1(q * dt)
+        s_j = underlying[:, j]
+        pnl_path[:, j] = option_marks[:, j] + shares * s_j + cash
+        if j < n_grid - 1:
+            new_shares = -hedge_ratios[:, j]
             trade = new_shares - shares
             cash -= trade * s_j
             step_cost = np.abs(trade) * cost_per_share
@@ -130,18 +142,41 @@ def delta_hedge_synthetic(
             shares = new_shares
             pnl_path[:, j] -= step_cost
         else:
-            # final unwind of the share hedge at S_T
             step_cost = np.abs(shares) * cost_per_share
             cost += step_cost
             pnl_path[:, j] -= step_cost
 
-    pnl = pnl_path[:, -1]
+    return HedgeResult(pnl=pnl_path[:, -1], pnl_path=pnl_path, trading_cost=cost)
 
-    identity = gamma_pnl_identity_integral(
-        paths, k, t_years, r, sigma_iv, sigma_real, kind=kind, q=q
-    )
-    return HedgeResult(
-        pnl=pnl, identity_integral=identity, pnl_path=pnl_path, trading_cost=cost
+
+def delta_hedge_synthetic(
+    paths: np.ndarray,
+    k: float,
+    t_years: float,
+    r: float,
+    sigma_iv: float,
+    kind: str = "call",
+    q: float = 0.0,
+    cost_per_share: float = 0.0,
+) -> HedgeResult:
+    """Synthetic adapter: mark and hedge at BS(sigma_iv) along simulated paths.
+
+    Rehedging happens at every grid point of `paths`; to study frequency,
+    simulate paths with different n_steps. Compare the result against
+    `gamma_pnl_identity_integral` (the closed-form reference) in tests.
+    """
+    n_grid = paths.shape[1]
+    times = np.linspace(0.0, t_years, n_grid)
+    ttm = t_years - times
+
+    marks = np.empty_like(paths)
+    deltas = np.empty_like(paths)
+    for j in range(n_grid):
+        marks[:, j] = bs_price(paths[:, j], k, ttm[j], r, sigma_iv, q, kind)
+        deltas[:, j] = bs_delta(paths[:, j], k, ttm[j], r, sigma_iv, q, kind)
+
+    return replay_hedged_position(
+        times, paths, marks, deltas, r, q=q, cost_per_share=cost_per_share
     )
 
 
@@ -155,10 +190,12 @@ def gamma_pnl_identity_integral(
     kind: str = "call",
     q: float = 0.0,
 ) -> np.ndarray:
-    """Pathwise integral  X_T = int_0^T e^{r(T-u)} 0.5 Gamma_iv S^2 (sr^2 - siv^2) du.
+    """Pathwise reference  X_T = int_0^T e^{r(T-u)} 0.5 Gamma_iv S^2 (sr^2 - siv^2) du.
 
     Left-endpoint Riemann sum on the path grid. Gamma is evaluated at the
-    hedge vol sigma_iv (that is what the identity requires -- NOT realized vol).
+    hedge vol sigma_iv (that is what the identity requires -- NOT realized
+    vol). This is the ex-post REFERENCE the engine is validated against; it
+    is not part of the trading account.
     """
     n_grid = paths.shape[1]
     n_steps = n_grid - 1

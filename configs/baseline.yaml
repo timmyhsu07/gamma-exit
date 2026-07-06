@@ -1,43 +1,71 @@
-# Baseline experiment config (stub -- consumed by backtest/runner.py from
-# Milestone 5 on; fields already used by the prototype are marked).
-# Every result artifact must log this config + the git commit hash.
+# Baseline experiment config — the single source of truth for run parameters
+# (eng-review decision 2A). Loaded/validated by gamma_exit.config.load_config;
+# every result artifact must log this config + the git commit hash.
+#
+# TIME BASIS: trading-day years, 252/yr everywhere (decision 3A) — see
+# src/gamma_exit/conventions.py. Vols and T are trading-basis.
 
 experiment:
   name: baseline
-  seed: 20260702            # used by the synthetic engine / harness
+  seed: 20260702
 
 data:
-  provider: yfinance        # yfinance | thetadata | optionmetrics
+  provider: yfinance          # yfinance | thetadata | optionmetrics (readers deferred, D3)
   cache_root: cache
-  universe: [SPY]
+  # ^SPX: European-style index options, no discrete-dividend/early-exercise
+  # noise in the delta-hedge accounting (decision 14A). SPY kept as a
+  # cross-check universe; ^XSP is the small-notional SPX variant if needed.
+  universe: ["^SPX", "SPY"]
   start: 2024-01-01
   end: 2026-06-30
 
 rates:
-  mode: constant            # constant | curve (Milestone 2)
-  risk_free: 0.04           # used by data/snapshot.py IV demo
+  mode: constant              # constant | curve (upgrade path)
+  risk_free: 0.04
 
 quotes:
-  price: mid                # hard rule: mid-or-drop in replay mode
+  price: mid                  # hard rule: mid-or-drop in replay mode
   min_volume: 10
   min_open_interest: 100
   moneyness_band: [0.90, 1.10]
   dte_buckets: [[7, 30], [30, 90], [90, 180]]
 
 costs:
-  # every backtest runs at ALL of these; results reported per level
+  # Every backtest runs at ALL levels; results reported per level (hard rule).
+  # Two documented cost vocabularies (decision 17A):
+  #   option_spread_frac    fraction of the OBSERVED half-spread paid on
+  #                         option entry/exit in replay mode (0 / 0.5 / 1.0)
+  #   share_cost_per_share  dollars per share traded on hedge rebalances;
+  #                         also what the synthetic engine charges directly
   levels:
-    - {name: zero,        option_half_spread: 0.0, share_cost: 0.0}
-    - {name: half_spread, option_half_spread: 0.5, share_cost: 0.005}
-    - {name: full_spread, option_half_spread: 1.0, share_cost: 0.01}
+    - {name: zero,        option_spread_frac: 0.0, share_cost_per_share: 0.0}
+    - {name: half_spread, option_spread_frac: 0.5, share_cost_per_share: 0.005}
+    - {name: full_spread, option_spread_frac: 1.0, share_cost_per_share: 0.01}
 
 vol:
-  forecast: {model: ewma, lambda: 0.94}     # CAUSAL only
-  realized: {estimator: close_to_close}     # EX-POST only (oracle/attribution)
+  forecast: {model: ewma, lambda: 0.94}     # CAUSAL only — policies may use
+  realized: {estimator: close_to_close}     # EX-POST only — oracle/attribution
 
-policies:                   # Milestone 4
+# Entry protocols (decision 13A): pre-registered BEFORE any real-data run so
+# entry selection can never be quietly fit to the exits that looked good.
+entries:
+  - unconditional           # control: enter every eligible position
+  - forecast_rv_gt_iv       # causal gate: EWMA forecast vol > entry IV
+
+policies:                   # Milestone 4 exits
   - hold_to_expiry
   - fixed_time
   - oracle                  # NON-TRADABLE upper bound, quarantined
   - theta_gamma_threshold
   - trailing_stop
+
+# Synthetic validation scenario for validation/harness (Milestone 1 gate).
+validation:
+  s0: 100.0
+  strike: 100.0
+  t_years: 1.0
+  r: 0.02
+  mu: 0.08
+  sigma_real: 0.30
+  sigma_iv: 0.20
+  n_paths: 5000

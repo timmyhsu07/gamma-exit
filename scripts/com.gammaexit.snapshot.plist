@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Template: replace __REPO__ with the absolute repo path and adjust
+     Hour/Minute so it fires MID US MARKET SESSION in your local timezone
+     (after-hours snapshots have zeroed bid/ask). Install:
+       cp scripts/com.gammaexit.snapshot.plist ~/Library/LaunchAgents/
+       launchctl load ~/Library/LaunchAgents/com.gammaexit.snapshot.plist -->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.gammaexit.snapshot</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>__REPO__/scripts/daily_snapshot.sh</string>
+  </array>
+  <key>StartCalendarInterval</key>
+  <array>
+    <dict><key>Weekday</key><integer>1</integer><key>Hour</key><integer>10</integer><key>Minute</key><integer>30</integer></dict>
+    <dict><key>Weekday</key><integer>2</integer><key>Hour</key><integer>10</integer><key>Minute</key><integer>30</integer></dict>
+    <dict><key>Weekday</key><integer>3</integer><key>Hour</key><integer>10</integer><key>Minute</key><integer>30</integer></dict>
+    <dict><key>Weekday</key><integer>4</integer><key>Hour</key><integer>10</integer><key>Minute</key><integer>30</integer></dict>
+    <dict><key>Weekday</key><integer>5</integer><key>Hour</key><integer>10</integer><key>Minute</key><integer>30</integer></dict>
+  </array>
+  <key>StandardErrorPath</key>
+  <string>__REPO__/logs/launchd_snapshot.err</string>
+</dict>
+</plist>

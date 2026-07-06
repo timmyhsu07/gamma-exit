@@ -8,9 +8,7 @@ from gamma_exit.pnl.engine import delta_hedge_synthetic, simulate_gbm_paths
 
 def _run(cost):
     paths = simulate_gbm_paths(100.0, 0.05, 0.30, 1.0, 252, 1500, 7)
-    return delta_hedge_synthetic(
-        paths, 100.0, 1.0, 0.02, 0.20, 0.30, cost_per_share=cost
-    )
+    return delta_hedge_synthetic(paths, 100.0, 1.0, 0.02, 0.20, cost_per_share=cost)
 
 
 def test_zero_cost_charges_nothing():

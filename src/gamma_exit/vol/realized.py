@@ -10,7 +10,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-TRADING_DAYS = 252
+from gamma_exit.conventions import TRADING_DAYS_PER_YEAR as TRADING_DAYS
 
 
 def close_to_close(closes: pd.Series, annualize: bool = True) -> float:

@@ -1,0 +1,25 @@
+# Validation suite in CI (hard rule: math reconciliations are CI tests, not
+# one-off checks). Network-touching code is covered by offline fixtures, so
+# this needs no market access.
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.13"
+      - name: Install
+        run: uv sync --dev
+      - name: Validation suite
+        run: uv run pytest -q
+      - name: Identity-convergence harness (smoke)
+        run: uv run python -m gamma_exit.validation.harness --paths 500 --no-plot
+      - name: Lint
+        run: uv run ruff check src tests

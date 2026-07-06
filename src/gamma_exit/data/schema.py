@@ -74,9 +74,13 @@ BAR_COLUMNS = list(UnderlyingBar.model_fields)
 def options_to_frame(records: list[OptionRecord]) -> pd.DataFrame:
     rows = [{**r.model_dump(), "mid": r.mid} for r in records]
     df = pd.DataFrame(rows, columns=OPTION_COLUMNS)
-    return df.astype({"expiry": "datetime64[ns]"}, errors="ignore")
+    # fail loudly at the boundary: malformed expiries must not flow downstream;
+    # pin ns resolution so parquet round-trips compare equal
+    df["expiry"] = pd.to_datetime(df["expiry"]).astype("datetime64[ns]")
+    return df
 
 
 def bars_to_frame(records: list[UnderlyingBar]) -> pd.DataFrame:
     df = pd.DataFrame([r.model_dump() for r in records], columns=BAR_COLUMNS)
-    return df.astype({"date": "datetime64[ns]"}, errors="ignore")
+    df["date"] = pd.to_datetime(df["date"]).astype("datetime64[ns]")
+    return df
