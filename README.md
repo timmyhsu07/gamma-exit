@@ -25,8 +25,17 @@ dPnL ≈ ½ · Γ · S² · (σ_realized² − σ_implied²) · dt
   the harness and snapshot demo, dividend-yield accounting validated, offline
   provider fixtures, CI, daily snapshot automation. ThetaData / OptionMetrics
   readers deferred until data access exists (`TODOS.md` TD-1).
-- Milestones 3–6 (real-data replay, policies + quarantined oracle, walk-forward
-  backtest, paper-figure reproduction): not started.
+- **Milestone 3 — replay machinery DONE, awaiting real data**: `pnl/replay.py`
+  replays a position through observed quotes (loader over cached chains →
+  per-day IV from mids → daily delta-hedge → the validated core) with a daily
+  attribution series (gamma / theta / vega / carry / cost / net / cum_net).
+  Gated by an **equivalence test**: fed a synthetic chain in canonical quote
+  format, the full pipeline reproduces the M1 synthetic engine pathwise to
+  IV-solver tolerance — so real-data results inherit the M1 validation and
+  the only new trust assumption is the quotes themselves. Runs on real
+  vendor data the day TD-1 lands (schema drop-in).
+- Milestones 4–6 (policies + quarantined oracle, walk-forward backtest,
+  paper-figure reproduction): not started.
 
 ## Setup
 
@@ -109,6 +118,29 @@ overwrite — that is the point).
 9. **Interest accrues on the trading clock** — a deliberate, documented
    approximation worth ~1.5% *of r* on the discount exponent (sub-bp price
    impact at r ≤ 5%); see `conventions.py` for when to revisit.
+
+## Milestone 3 assumptions & known caveats
+
+1. **Stale days are marked to model** (BS at the last solved IV, flagged
+   `stale`): the position's *value* on those days is a model statement, not a
+   market one. Nothing trades on a stale mark (mid-or-drop at entry/exit is
+   enforced), and vega P&L is zero on stale days by construction (IV ffill).
+2. **The hedge re-balances daily at the model delta**, even on stale-quote
+   days — the underlying is liquid regardless of the option's quote quality.
+   Delta uses the day's mid-implied IV: a noisy mid moves the hedge ratio.
+3. **Attribution is model-based** (Greeks at the previous close); `residual`
+   is the exact plug to the true accounting net. On real data it absorbs
+   quote noise and higher-order moves — a persistently large residual is a
+   data-quality signal, not something to silently ignore.
+4. **Expiry exit = cash settlement at intrinsic on the expiry date's spot.**
+   Real SPX monthlies are AM-settled (SET print); daily-bar replay ignores
+   that PM/AM distinction. Prefer weeklies/PM-settled series or accept the
+   settlement-day noise.
+5. **One row per trading day.** The loader dedupes multiple pulls to the last
+   per US-Eastern date and drops weekend/holiday pulls; intraday timing of
+   the snapshot within the day is not modeled.
+6. **Per-share units, one option on one share.** Contract multipliers (100x)
+   and position sizing are the M5 runner's job.
 
 ## Layout
 

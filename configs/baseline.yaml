@@ -22,6 +22,9 @@ data:
 rates:
   mode: constant              # constant | curve (upgrade path)
   risk_free: 0.04
+  # continuous dividend yield of the primary underlying; ^SPX trailing yield.
+  # Used in IV recomputation and hedge deltas; refine if it proves material.
+  dividend_yield: 0.012
 
 quotes:
   price: mid                  # hard rule: mid-or-drop in replay mode

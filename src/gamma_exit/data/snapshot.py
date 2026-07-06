@@ -100,7 +100,7 @@ def main() -> None:
     liquid["t_years"] = [years_to_expiry(e.date(), asof) for e in liquid["expiry"]]
     liquid = liquid[liquid["t_years"] > 0]
     liquid["iv_mid"] = [
-        implied_vol(m, spot, k, t, risk_free, 0.0, kind)
+        implied_vol(m, spot, k, t, risk_free, cfg.rates.dividend_yield, kind)
         for m, k, t, kind in zip(
             liquid[price_col], liquid["strike"], liquid["t_years"], liquid["kind"]
         )

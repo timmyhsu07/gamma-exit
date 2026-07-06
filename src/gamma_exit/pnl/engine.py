@@ -77,6 +77,10 @@ class HedgeResult:
     pnl: np.ndarray  # (n_paths,) final portfolio value X_T (starts at 0)
     pnl_path: np.ndarray  # (n_paths, n_grid) X_t through time
     trading_cost: np.ndarray  # (n_paths,) total dollars paid in costs
+    # money-market balance carried OUT of each grid point (post accrual,
+    # dividends, and rebalance); attribution derives interest from it so the
+    # cash recursion lives in exactly one place
+    cash_path: np.ndarray  # (n_paths, n_grid)
 
 
 def replay_hedged_position(
@@ -124,6 +128,8 @@ def replay_hedged_position(
 
     pnl_path = np.zeros((n_paths, n_grid))
     pnl_path[:, 0] = -cost
+    cash_path = np.zeros((n_paths, n_grid))
+    cash_path[:, 0] = cash
 
     for j in range(1, n_grid):
         dt = dts[j - 1]
@@ -145,8 +151,11 @@ def replay_hedged_position(
             step_cost = np.abs(shares) * cost_per_share
             cost += step_cost
             pnl_path[:, j] -= step_cost
+        cash_path[:, j] = cash
 
-    return HedgeResult(pnl=pnl_path[:, -1], pnl_path=pnl_path, trading_cost=cost)
+    return HedgeResult(
+        pnl=pnl_path[:, -1], pnl_path=pnl_path, trading_cost=cost, cash_path=cash_path
+    )
 
 
 def delta_hedge_synthetic(

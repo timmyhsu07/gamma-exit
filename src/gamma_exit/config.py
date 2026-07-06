@@ -35,6 +35,7 @@ class DataConfig(_Strict):
 class RatesConfig(_Strict):
     mode: Literal["constant"]
     risk_free: float
+    dividend_yield: float = 0.0  # continuous q of the underlying (SPX ~1.2%)
 
 
 class QuotesConfig(_Strict):
