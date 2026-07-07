@@ -67,7 +67,7 @@ class TestWriteOnceCache:
         assert sorted(out["kind"]) == ["call", "put"]
 
     def test_query_tolerates_braces_in_sql(self, tmp_path):
-        # regression for decision 7A: str.format would KeyError on DuckDB
+        # regression: str.format would KeyError on DuckDB
         # struct literals; literal {root} replacement must not
         cache = WriteOnceCache(tmp_path)
         cache.write(options_to_frame([_rec()]), "chains", "SPY/x")

@@ -205,8 +205,8 @@ def run_candidate(
 
 
 def apply_entry_protocols(rows: list[dict], cfg: Config) -> pd.DataFrame:
-    """Tag every result row with each pre-registered entry protocol it passes
-    (decision 13A): 'unconditional' keeps everything; 'forecast_rv_gt_iv'
+    """Tag every result row with each pre-registered entry protocol it passes:
+    'unconditional' keeps everything; 'forecast_rv_gt_iv'
     keeps positions whose CAUSAL entry forecast exceeded the entry IV."""
     df = pd.DataFrame(rows)
     frames = []

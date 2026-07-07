@@ -1,4 +1,4 @@
-"""Shared chart tokens + helpers (dataviz reference palette, light mode).
+"""Shared chart tokens + helpers (light mode).
 
 Categorical slots keep the palette's validated ordering (the ordering IS the
 CVD-safety mechanism); color follows the ENTITY, so each policy owns a fixed

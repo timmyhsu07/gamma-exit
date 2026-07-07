@@ -1,202 +1,194 @@
 # gamma-exit
 
-Research backtester for the **gamma-scalping / theta-decay trade-off**: when
-should a delta-hedged long option position be *closed* (liquidated), and how
-much of the ex-post-optimal exit's edge can *causal* (non-anticipating) rules
-capture on real data, net of transaction costs?
+When should you close a delta-hedged long option position?
 
-Based on (and correcting) Ramkumar (2025), *"The Gamma Scalping–Theta Decay
-Trade-Off..."*. Full project spec: `PROJECT_BRIEF.md`. Engine of everything:
+A delta-hedged long option is a bet that realized volatility will beat the
+implied volatility you paid. You collect gamma P&L when the underlying moves
+and you bleed theta every day it doesn't — so there's a natural stopping
+problem: at some point the remaining convexity stops paying the rent.
 
-```
-dPnL ≈ ½ · Γ · S² · (σ_realized² − σ_implied²) · dt
-```
+This repo is a research backtester I built to study that trade-off properly.
+It started from Ramkumar (2025), *"The Gamma Scalping–Theta Decay Trade-Off as
+a Basis for American Option Valuation and Optimal Exercise Timing"* — a paper
+whose framing I ended up partly disagreeing with. The engineering goal was a
+pipeline where every number is defensible: no look-ahead, validated math,
+transaction costs everywhere, and one command to reproduce any result.
 
-## Status
+Two things this project is careful about that the paper is not:
 
-- **Milestone 1 — DONE**: pricing validated vs QuantLib; synthetic delta-hedge
-  engine reconciles pathwise against the closed-form identity; drift-invariance
-  verified empirically (the paper's `−(μ−r)S²Γ` term does not survive
-  self-financing accounting).
-- **Milestone 2 — foundation landed** (eng review 2026-07-02, 18 decisions):
-  shared mark-agnostic accounting core (`replay_hedged_position` — the M1
-  validation now covers the exact loop replay mode will use), single
-  trading-day time basis (`conventions.py`), typed config loader wired into
-  the harness and snapshot demo, dividend-yield accounting validated, offline
-  provider fixtures, CI, daily snapshot automation. ThetaData / OptionMetrics
-  readers deferred until data access exists (`TODOS.md` TD-1).
-- **Milestone 3 — replay machinery DONE, awaiting real data**: `pnl/replay.py`
-  replays a position through observed quotes (loader over cached chains →
-  per-day IV from mids → daily delta-hedge → the validated core) with a daily
-  attribution series (gamma / theta / vega / carry / cost / net / cum_net).
-  Gated by an **equivalence test**: fed a synthetic chain in canonical quote
-  format, the full pipeline reproduces the M1 synthetic engine pathwise to
-  IV-solver tolerance — so real-data results inherit the M1 validation and
-  the only new trust assumption is the quotes themselves. Runs on real
-  vendor data the day TD-1 lands (schema drop-in).
-- **Milestone 4 — DONE**: frozen `PositionState` + `ExitPolicy` interface
-  (causality by construction, decision 4A), benchmark policies
-  (hold-to-expiry, fixed-time), causal policies (theta/gamma threshold,
-  trailing stop, vol regime) consuming ONLY the causal forecast, and the
-  **quarantined oracle** (ex-post argmax; not an ExitPolicy, not registrable,
-  dominance asserted by tests).
-- **Milestone 5 — DONE**: `backtest/runner.py` runs every position × entry
-  protocol × policy × cost level, writes parquet results with a config+commit
-  sidecar; `analytics/metrics.py` reports the study's headline number —
-  **capture fraction** of the oracle's edge over hold — with entry-date
-  cluster-bootstrap CIs (TD-3); `analytics/regimes.py` tags vol/drift regimes.
-- **Milestone 6 — DONE on synthetic worlds**: `analytics/figures.py`
-  regenerates the paper's Figures 1–3 with the validated engine
-  (`reports/fig*.png`). Fig 1 shows the paper's central claim breaking: P&L
-  varies along the vol-gap axis and is flat along drift. Real-data versions
-  run through the same code the day TD-1 data lands.
+1. **The paper's "optimal stopping" strategy uses the future.** It exits at
+   the ex-post argmax of cumulative P&L. That's an *oracle* — a useful upper
+   bound, but not a strategy. Here it's quarantined in its own module,
+   deliberately incompatible with the policy interface, and every tradable
+   rule is scored as a *fraction of the oracle's edge* instead.
+2. **The paper's derivation carries a `−(μ−r)S²Γ` drift term** that shouldn't
+   survive self-financing accounting. This engine's P&L is empirically
+   drift-invariant (tested at μ = r + 15% across thousands of paths), and the
+   surfaces below show it: P&L moves along the vol-gap axis, not the drift
+   axis.
+
+## Results so far (synthetic worlds — real chains land next)
+
+![Mean hedged P&L over (drift spread x vol spread)](docs/figures/fig1_surfaces.png)
+
+Every cell above is the validated engine run on GBM paths, not a formula
+plot. If the paper's drift term were real, the color would tilt along the
+vertical axis. It doesn't.
+
+![Exit-rule cross-section](docs/figures/fig3_summary.png)
+
+The headline numbers (`python scripts/headline_numbers.py` reproduces both,
+seeded from the config):
+
+- **The oracle ceiling is real but modest:** perfect-foresight exits improve
+  mean P&L over hold-to-expiry by **+55%** across 300 positions in five
+  regimes (+66% net of full bid-ask costs, because costs hurt holding more).
+- **In constant-vol-gap worlds, causal exit rules *should* lose — and do.**
+  When σ_real > σ_IV persistently, every extra day of holding has positive
+  expected P&L, so all early exits give up edge (capture ≤ 0). The oracle's
+  gain there is pure ex-post path selection. This is the paper's central
+  claim dissolving under a causality constraint.
+- **Where the edge decays mid-life, causal rules genuinely work:** in
+  regime-shift scenarios (realized vol collapses halfway through), a simple
+  EWMA-forecast exit rule captures **72% of the oracle's edge** (90% cluster
+  bootstrap CI: 66–77%), *net of full transaction costs*.
+
+So the honest reframing of the paper: exit timing is not free money from
+convexity bookkeeping; it's a bet on volatility-regime change, and it should
+be measured as one.
 
 ## Quickstart
 
 ```bash
-# 1. install (any machine with uv; creates ./.venv from uv.lock)
+# install (needs uv; creates ./.venv from the lockfile)
 uv sync --dev
 source .venv/bin/activate
 
-# 2. prove the math before trusting anything (the M1/M3 gates, ~12 s)
+# prove the math before trusting anything (~20 s)
 pytest
 
-# 3. see the identity convergence with your own eyes
-python -m gamma_exit.validation.harness            # table + reports/*.png
+# see the M1 gate with your own eyes: discrete hedging -> the identity
+python -m gamma_exit.validation.harness
 
-# 4. run the full backtest on synthetic paper-style scenarios
+# full backtest: 5 regimes x 10 pre-registered policies x 3 cost levels
 python -m gamma_exit.backtest.runner --positions-per-scenario 30
-#    -> results/results_<stamp>.parquet + .meta.json (config + git commit)
-#    -> per-policy summary incl. CAPTURE FRACTION with bootstrap CIs
 
-# 5. regenerate the paper's Figures 1-3 with the validated engine
-python -m gamma_exit.analytics.figures             # reports/fig{1,2,3}_*.png
+# regenerate the figures above
+python -m gamma_exit.analytics.figures
 
-# 6. live data path (needs network; market hours for tradable mids)
-python -m gamma_exit.data.snapshot                 # ^SPX chain -> cache/
+# reproduce the headline numbers quoted in this README
+python scripts/headline_numbers.py
+
+# live data path (needs network; run during US market hours)
+python -m gamma_exit.data.snapshot
 ```
 
 Everything takes `--config` (default `configs/baseline.yaml`) — the YAML is
 the single source of truth for seeds, rates, universe, quote filters, cost
-levels, and the **pre-registered policy grid**; code carries no copies of
-those numbers.
+levels, and the pre-registered policy grid. Code carries no copies of those
+numbers, and every results artifact is written with its config and git
+commit.
 
-To accumulate daily chain snapshots automatically (they become a validation
-slice against the paid historical data later), see `scripts/daily_snapshot.sh`
-and the launchd template next to it — schedule it mid US market session.
+## How it's validated
 
-The harness writes `reports/pnl_identity_convergence.png`. The snapshot demo
-writes immutable Parquet under `cache/` (second run on the same key refuses to
-overwrite — that is the point).
+I didn't trust the engine until it survived three gates, all in CI:
 
-## Hard rules enforced in code and tests
+**Gate 1 — the identity.** On synthetic GBM paths, discrete delta-hedge P&L
+must converge pathwise to the closed-form
+
+```
+X_T = ∫ e^{r(T−u)} · ½ Γ S² (σ_real² − σ_IV²) du
+```
+
+as rehedge frequency rises (RMS residual ~ 1/√n), with **no drift bias**, for
+calls, puts, and dividend-paying underlyings:
+
+![Identity convergence](docs/figures/pnl_identity_convergence.png)
+
+**Gate 2 — equivalence.** The real-data replay pipeline (quote loader →
+per-day IV solve → daily delta-hedge → shared accounting core) is fed a
+synthetic option chain in canonical vendor format and must reproduce the
+synthetic engine's P&L path to IV-solver tolerance. Real-data results
+therefore inherit Gate 1; the only new thing you trust is the quotes.
+
+**Gate 3 — system invariants.** In a fair world (μ = r, σ_real = σ_IV) no
+causal policy may show significant P&L — while the oracle *must* profit from
+noise, which is exactly why it's quarantined. In a world built so the vol
+edge dies mid-life, the causal vol watcher *must* beat holding. The pipeline
+is pinned from both sides. (One of these probes false-alarmed at n=24 during
+development; the investigation that cleared it — optional stopping holds,
+t = −0.02 at n=100 — is documented in the test itself.)
+
+Pricing and Greeks are validated against QuantLib to 1e-8 or tighter, and the
+whole suite (172 tests) runs from a clean `uv sync` on CI.
+
+## Rules the code actually enforces
 
 | Rule | Where |
 |---|---|
-| Discrete-hedge P&L must reconcile with the ½ΓS²(σr²−σIV²) identity | `pnl/engine.py`, `tests/test_pnl_identity.py` |
-| No drift bias in hedged P&L (paper's μ-term rejected) | `tests/test_pnl_identity.py::TestNoDriftBias` |
-| Greeks match QuantLib to 1e-8 or tighter | `tests/test_greeks_vs_quantlib.py` |
+| Hedge P&L must reconcile with the ½ΓS²(σr²−σIV²) identity | `pnl/engine.py`, `tests/test_pnl_identity.py` |
+| No drift bias (the paper's μ-term rejected empirically) | `tests/test_pnl_identity.py::TestNoDriftBias` |
+| Causality by construction: policies get a frozen per-day state, never a frame | `strategy/base.py`, `tests/test_no_lookahead.py` |
+| The oracle is not a strategy: separate module, incompatible interface | `strategy/oracle.py` |
 | Realized vol (ex-post) vs forecast vol (causal) never crossed | `vol/realized.py` vs `vol/forecast.py` |
-| Transaction costs first-class, monotone | `tests/test_cost_model.py`, `configs/baseline.yaml` |
-| Raw data immutable (write-once cache; bad pulls quarantined, never deleted) | `data/cache.py`, `tests/test_cache_and_schema.py` |
-| One time basis: trading-day years (252/yr), converted only at the data boundary | `conventions.py`, `tests/test_conventions_and_config.py` |
-| All runs config-driven; YAML typos fail at load time | `config.py`, `tests/test_conventions_and_config.py` |
-| Mid-or-drop quote policy (last-trade only in the labeled demo fallback) | `data/schema.py::OptionRecord.mid` |
-| Oracle quarantine (non-tradable ceiling) | `strategy/__init__.py` (Milestone 4) |
-
-## Milestone 1 assumptions & known caveats
-
-1. **Option marked at BS(σ_IV) between entry and expiry.** In synthetic mode the
-   "market price" of the option *is* its Black-Scholes value at the constant
-   hedge vol. Real quotes have a moving IV; replay mode (Milestone 3) will mark
-   at observed mids instead, which adds a vega P&L term the identity does not
-   contain. The identity test is exactly as strong as this assumption is
-   explicit.
-2. **Constant σ_real, σ_IV, r, μ; GBM.** Continuous dividend yield `q` is now
-   validated end-to-end (the accounting core credits the dividend flow on the
-   hedge shares; `TestDividendYield` reconciles it against the identity).
-   Discrete cash dividends for single names remain a Milestone 3 concern —
-   the primary ^SPX universe sidesteps them entirely.
-3. **Hedging on the simulation grid.** Paths are exact GBM at grid points, and
-   the hedge rebalances at every grid point, so "rehedge frequency" and "grid
-   resolution" are the same knob. The identity integral is a left-endpoint
-   Riemann sum on the same grid — near-expiry ATM gamma is large, and the
-   left-endpoint sum slightly under-resolves it; this shows up as (small)
-   residual noise, not bias, and shrinks with frequency as verified.
-4. **Costs are proportional per share hedged** (`cost_per_share` ≈ half-spread).
-   No option-side spread in synthetic mode (you buy and hold one option; entry
-   spread is a constant that shifts all exits equally — it will matter for
-   *exit timing* only through the exit-side spread, added in Milestone 3).
-5. **Theta convention**: calendar theta `∂V/∂t` per year, matching QuantLib's
-   `theta()`. Per-day theta = annual / 365.
-6. **IV solver honesty**: deep-ITM/short-dated quotes are vega-degenerate; the
-   solver returns *a* vol that reprices the quote, not "the" vol. The data
-   layer's liquidity/moneyness filters exist precisely to avoid feeding those
-   to anything downstream.
-7. **yfinance quirks measured, not assumed**: after-hours chains carry zeroed
-   bid/ask/OI (mid-based filtering then correctly yields zero usable quotes),
-   and Yahoo's `impliedVolatility` column is unreliable (stored as
-   `provider_iv`, advisory only; we recompute from quotes).
-8. **Risk-free rate is a constant from config** (`rates.mode: constant`); a
-   real short-rate series is an upgrade path (`rates.mode: curve`), needed
-   before multi-year replays.
-9. **Interest accrues on the trading clock** — a deliberate, documented
-   approximation worth ~1.5% *of r* on the discount exponent (sub-bp price
-   impact at r ≤ 5%); see `conventions.py` for when to revisit.
-
-## Milestone 3 assumptions & known caveats
-
-1. **Stale days are marked to model** (BS at the last solved IV, flagged
-   `stale`): the position's *value* on those days is a model statement, not a
-   market one. Nothing trades on a stale mark (mid-or-drop at entry/exit is
-   enforced), and vega P&L is zero on stale days by construction (IV ffill).
-2. **The hedge re-balances daily at the model delta**, even on stale-quote
-   days — the underlying is liquid regardless of the option's quote quality.
-   Delta uses the day's mid-implied IV: a noisy mid moves the hedge ratio.
-3. **Attribution is model-based** (Greeks at the previous close); `residual`
-   is the exact plug to the true accounting net. On real data it absorbs
-   quote noise and higher-order moves — a persistently large residual is a
-   data-quality signal, not something to silently ignore.
-4. **Expiry exit = cash settlement at intrinsic on the expiry date's spot.**
-   Real SPX monthlies are AM-settled (SET print); daily-bar replay ignores
-   that PM/AM distinction. Prefer weeklies/PM-settled series or accept the
-   settlement-day noise.
-5. **One row per trading day.** The loader dedupes multiple pulls to the last
-   per US-Eastern date and drops weekend/holiday pulls; intraday timing of
-   the snapshot within the day is not modeled.
-6. **Per-share units, one option on one share.** Contract multipliers (100x)
-   and position sizing are the M5 runner's job.
-
-## Milestone 4–6 assumptions & known caveats
-
-1. **Same-close execution**: decisions read the close and trade the close —
-   the standard daily-backtest convention; its optimism is shared equally by
-   every policy AND the oracle, so capture fractions are internally fair.
-2. **The synthetic finding is a finding**: in constant-vol-gap GBM worlds,
-   every day of a σ_real>σ_IV position has positive expected P&L, so the
-   causal-optimal action is to hold — early-exit rules SHOULD lose there, and
-   they do (negative capture). The oracle's +0.2 mean edge over hold is pure
-   ex-post path selection. Causal exit rules can only earn positive capture
-   in worlds where the vol edge decays/flips mid-life — i.e., on real data
-   (or a regime-switching synthetic world, a natural extension).
-3. **Policy parameters are pre-registered** in `configs/baseline.yaml`, not
-   tuned on results; the whole grid gets reported, never a post-hoc winner.
-4. **FixedTime's 0.79 default** comes from the paper's oracle mean stop —
-   information a trader wouldn't have; treat it as a benchmark, not a rule.
+| Every backtest runs at zero / half / full spread; all three reported | `configs/baseline.yaml`, `tests/test_cost_model.py` |
+| Mid-or-drop: nothing trades on a one-sided or stale quote | `data/schema.py`, `pnl/replay.py` |
+| Raw pulls are immutable; bad ones get quarantined, never deleted | `data/cache.py` |
+| One time basis: trading-day years, converted only at the data boundary | `conventions.py` |
+| Policy parameters pre-registered in config, never tuned on results | `configs/baseline.yaml` |
 
 ## Layout
 
 ```
 src/gamma_exit/
-├── conventions.py  THE time basis: trading-day years, 252/yr (decision 3A)
+├── conventions.py  the ONE time basis: trading-day years, 252/yr
 ├── config.py       typed loader for configs/*.yaml (single source of truth)
-├── plotstyle.py    shared chart tokens (dataviz palette) + policy colors
-├── pricing/      BS price, IV solver, Greeks (QuantLib-validated)
-├── pnl/          shared accounting core + synthetic adapter + replay adapter
-├── vol/          realized (EX-POST ONLY) vs forecast (CAUSAL ONLY)
-├── data/         schema, write-once cache + quarantine, providers (yfinance)
-├── strategy/     PositionState/ExitPolicy, benchmarks, causal, ORACLE (quarantined)
-├── backtest/     synthetic position source + walk-forward runner
-├── analytics/    capture-fraction metrics + bootstrap CIs, regimes, figures
-└── validation/   synthetic reconciliation harness (M1 gate)
+├── plotstyle.py    shared chart tokens + fixed policy colors
+├── pricing/        BS price, IV solver, Greeks (QuantLib-validated)
+├── pnl/            the self-financing accounting core + synthetic & replay adapters
+├── vol/            realized (EX-POST ONLY) vs forecast (CAUSAL ONLY)
+├── data/           canonical schema, write-once cache, yfinance provider
+├── strategy/       PositionState/ExitPolicy, benchmarks, causal rules, ORACLE (quarantined)
+├── backtest/       synthetic scenario source + walk-forward runner
+├── analytics/      capture-fraction metrics + bootstrap CIs, regimes, figures
+└── validation/     the Gate-1 reconciliation harness
+tests/              172 tests incl. the three gates and system invariants
+scripts/            daily snapshot job, headline-number reproduction
+docs/               design notes + the figures embedded above
 ```
+
+## Assumptions & limitations I know about
+
+- **Synthetic worlds only, so far.** yfinance has no historical option
+  chains, so the real-data replay is validated and waiting on a historical
+  source (OptionMetrics via WRDS, or ThetaData — see `TODOS.md`). The daily
+  snapshot job is already accumulating a free validation slice.
+- **Same-close execution.** Decisions read the close and trade the close.
+  Optimistic, but shared equally by every policy *and* the oracle, so capture
+  fractions stay internally fair.
+- **Stale days are marked to model** (BS at last solved IV, flagged); nothing
+  trades on them, and a persistently large attribution `residual` on real
+  data should be read as a data-quality alarm, not ignored.
+- **Interest accrues on the trading clock** — a deliberate approximation
+  worth ~1.5% *of r* on the discount exponent (sub-bp in price at r ≤ 5%).
+  `conventions.py` documents when to revisit.
+- **Expiry = cash settlement at that day's spot.** Real SPX monthlies are
+  AM-settled; prefer PM-settled weeklies when the real data arrives.
+- **Per-share units** (one option on one share). Contract multipliers and
+  sizing belong to the portfolio layer, which doesn't exist yet.
+- The IV solver is a plain bracketed Brent — transparent but slow. If
+  full-chain recomputation ever becomes the bottleneck it gets swapped for
+  Jäckel's "Let's Be Rational" (`TODOS.md`).
+
+## References
+
+- Ramkumar, D. (2025). *The Gamma Scalping–Theta Decay Trade-Off as a Basis
+  for American Option Valuation and Optimal Exercise Timing.* (The framework
+  under test here; see `docs/DESIGN.md` for what this project keeps, corrects,
+  and reframes.)
+- El Karoui, N., Jeanblanc-Picqué, M., & Shreve, S. (1998). *Robustness of
+  the Black and Scholes formula.* — the hedging-at-the-wrong-vol identity the
+  whole engine is validated against.
+
+MIT license. If you spot an accounting error, please open an issue — the
+whole point of this project is that those are findable.

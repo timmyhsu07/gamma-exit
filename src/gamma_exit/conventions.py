@@ -1,4 +1,4 @@
-"""THE single time basis for the whole project (eng-review decision 3A).
+"""THE single time basis for the whole project.
 
 Convention: TRADING-DAY YEARS, 252 trading days = 1.0
 --------------------------------------------------------
@@ -22,11 +22,12 @@ Conversions happen at the DATA BOUNDARY, never downstream:
 
 Accepted approximation -- interest on the trading clock:
 Rates accrue on calendar time, but this project keeps r on the same
-trading clock as everything else. For T_cal=60d vs T_trd=42d the exponent
-r*T differs by ~1.5% OF r -- sub-basis-point price impact at r <= 5% and
-holding horizons <= 1y. Documented, deliberate, revisit only for r >> 5%
-or multi-year options. (Two-clock accounting doubles the API surface for
-basis-point precision the study does not need.)
+trading clock as everything else. I sized the error before accepting it:
+for T_cal=60d vs T_trd=42d the exponent r*T differs by ~1.5% OF r --
+sub-basis-point price impact at r <= 5% and holding horizons <= 1y.
+Deliberate; revisit only for r >> 5% or multi-year options. (Two-clock
+accounting would double the API surface for basis-point precision this
+study does not need.)
 """
 
 from __future__ import annotations

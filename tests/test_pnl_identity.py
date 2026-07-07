@@ -75,7 +75,7 @@ class TestConvergenceToIdentity:
 
 
 class TestDividendYield:
-    """Decision 8A: the q parameter must reconcile, not just exist.
+    """The q parameter must reconcile, not just exist.
 
     With a continuous dividend yield the identity holds only if the core
     credits the dividend flow on the share position -- so this test fails
@@ -158,7 +158,7 @@ class TestNoDriftBias:
 
 
 class TestGbmSimulator:
-    """Decision 8A: statistical sanity of the path generator itself."""
+    """Statistical sanity of the path generator itself."""
 
     def test_log_return_moments(self):
         mu, sigma, t, n_steps, n_paths = 0.07, 0.22, 1.0, 252, 4000

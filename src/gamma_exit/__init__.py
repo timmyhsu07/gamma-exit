@@ -1,6 +1,6 @@
 """gamma_exit: research backtester for the gamma-scalping / theta-decay trade-off.
 
-Layer map (see PROJECT_BRIEF.md):
+Layer map (see docs/DESIGN.md):
 - pricing/    Black-Scholes price, implied vol, Greeks (validated vs QuantLib)
 - pnl/        delta-hedged P&L engine (synthetic + replay modes)
 - vol/        realized (EX-POST ONLY) and forecast (CAUSAL ONLY) volatility

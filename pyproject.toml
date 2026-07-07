@@ -3,6 +3,8 @@ name = "gamma-exit"
 version = "0.1.0"
 description = "Research backtester: gamma-scalping / theta-decay trade-off and optimal exit timing for delta-hedged long options"
 readme = "README.md"
+license = { file = "LICENSE" }
+authors = [{ name = "Timothy Hsu", email = "timmyhsu07@gmail.com" }]
 requires-python = ">=3.11"
 dependencies = [
     "numpy>=1.26",

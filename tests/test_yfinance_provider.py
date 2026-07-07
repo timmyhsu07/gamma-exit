@@ -1,8 +1,8 @@
-"""Offline fixture tests for the yfinance provider (decision 9A).
+"""Offline fixture tests for the yfinance provider.
 
 A canned Yahoo payload (frozen from a real pull, trimmed) exercises the
 normalization boundary without network: NaN handling, zero-bid mids, spot
-attachment, and the fail-loud guards from decision 6A. When yfinance changes
+attachment, and the fail-loud empty-history guards. When yfinance changes
 its payload shape, these tests name the break instead of a backtest quietly
 losing quotes.
 """

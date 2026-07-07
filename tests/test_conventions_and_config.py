@@ -1,4 +1,4 @@
-"""Tests for the single time basis (decision 3A) and the config loader (2A)."""
+"""Tests for the single time basis and the config loader."""
 
 from datetime import date, datetime, timezone
 

@@ -1,6 +1,6 @@
 """Milestone 3: replay a delta-hedged position through OBSERVED option quotes.
 
-This is the real-data adapter for the validated accounting core (decision 1A):
+This is the real-data adapter for the validated accounting core:
 
     cache (canonical chains)          synthetic engine (M1)
             |                                 |
@@ -27,9 +27,10 @@ Attribution: model-based decomposition with Greeks at the previous close.
 tests/test_replay.py pins it near zero on smooth synthetic chains, and the
 identity net == sum(components) holds by construction on any data.
 
-All times are trading-day years (decision 3A). Prices are per-share; scale by
-100x contracts in the caller. Weekend/holiday snapshot rows are dropped by the
-loader (a quote outside a trading session cannot be part of a daily replay).
+All times are trading-day years (see conventions.py). Prices are per-share;
+scale by 100x contracts in the caller. Weekend/holiday snapshot rows are
+dropped by the loader (a quote outside a trading session cannot be part of a
+daily replay).
 """
 
 from __future__ import annotations

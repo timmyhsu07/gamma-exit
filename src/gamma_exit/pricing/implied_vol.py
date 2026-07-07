@@ -3,6 +3,11 @@
 Returns NaN when the target price violates no-arbitrage bounds or when no
 vol in [SIGMA_LO, SIGMA_HI] reproduces it -- callers must treat NaN as
 "quote unusable", never as zero.
+
+Deliberately the boring solver: brentq is ~100x slower than Jackel's
+"Let's Be Rational" but I can read every line of it, which matters more
+while the pipeline is still being audited. Swap criteria live in TODOS.md
+(TD-2) -- don't optimize this before profiling says so.
 """
 
 from __future__ import annotations

@@ -1,7 +1,8 @@
-"""HARD RULE: causal policies can never see the future (decision 4A).
+"""HARD RULE: causal policies can never see the future.
 
 Causality is enforced by construction -- policies receive a frozen
-PositionState built by the runner -- so these tests pin the construction:
+PositionState built by the runner, never a data frame -- so these tests pin
+the construction:
 
 1. the state at day t built from a TRUNCATED history equals the state built
    from the full history (no field can encode rows > t);

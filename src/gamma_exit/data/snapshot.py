@@ -5,8 +5,8 @@ write-once cache, reload from disk, recompute IV from bid/ask mids on liquid
 near-ATM contracts, and compare against the provider's IV column.
 
 Run parameters (rate, quote filters, cache root, default ticker) come from
-the experiment config (decision 2A). Recomputed IVs use trading-day-year T
-(decision 3A, gamma_exit.conventions), so they are directly comparable to
+the experiment config. Recomputed IVs use trading-day-year T (see
+gamma_exit.conventions), so they are directly comparable to
 the realized/forecast vols printed alongside.
 
 Run:  python -m gamma_exit.data.snapshot [^SPX] [--max-expiries 3]

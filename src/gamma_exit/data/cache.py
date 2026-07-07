@@ -1,9 +1,9 @@
 """Write-once Parquet cache with DuckDB SQL over it.
 
-HARD RULE (PROJECT_BRIEF.md section 2): raw provider pulls are immutable.
-`write` refuses to overwrite an existing key -- re-running a pull can never
-silently rewrite history. If a pull was genuinely bad, delete the file by
-hand and re-pull; that action should be loud and deliberate.
+HARD RULE: raw provider pulls are immutable. `write` refuses to overwrite an
+existing key -- re-running a pull can never silently rewrite history. If a
+pull was genuinely bad, `quarantine` it (moves it aside with a reason file)
+and re-pull; nothing here ever deletes data.
 """
 
 from __future__ import annotations
@@ -39,7 +39,7 @@ class WriteOnceCache:
         if path.exists():
             raise FileExistsError(
                 f"cache is write-once: {path} already exists "
-                "(delete manually if the pull was bad)"
+                "(use .quarantine() if the pull was bad)"
             )
         path.parent.mkdir(parents=True, exist_ok=True)
         tmp = path.with_suffix(".parquet.tmp")

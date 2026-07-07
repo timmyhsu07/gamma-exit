@@ -6,7 +6,7 @@
 a CAUSAL rule actually collects, per cost level. Everything else here
 (means, Sharpe, win rates, stop-time stats) is supporting detail.
 
-Inference (TD-3): positions whose holding windows overlap share one realized
+A note on inference: positions whose holding windows overlap share one realized
 path, so rows are NOT independent. Confidence intervals therefore come from
 a cluster bootstrap that resamples ENTRY DATES (whole clusters of positions)
 with replacement -- the effective sample size is the number of distinct

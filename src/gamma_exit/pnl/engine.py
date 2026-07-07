@@ -1,6 +1,6 @@
 """Delta-hedged P&L: one self-financing accounting core, two thin adapters.
 
-Eng-review decision 1A: the accounting loop below is the ONLY code in this
+House rule: the accounting loop below is the ONLY code in this
 project that turns positions into P&L. Synthetic mode (Milestone 1) feeds it
 Black-Scholes marks on simulated paths; replay mode (Milestone 3) feeds it
 observed mid quotes on real paths. The Milestone 1 identity tests therefore

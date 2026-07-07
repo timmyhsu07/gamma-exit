@@ -8,8 +8,8 @@ reports convergence of the discrete-hedge P&L to the pathwise identity
 plus a drift sweep showing mean P&L is invariant to mu (no -(mu-r) S^2 Gamma
 term survives self-financing accounting).
 
-Scenario parameters and the seed come from the experiment config (decision
-2A); rehedge frequencies are a harness detail, not experiment config.
+Scenario parameters and the seed come from the experiment config; rehedge
+frequencies are a harness detail, not experiment config.
 
 Run:  python -m gamma_exit.validation.harness [--config configs/baseline.yaml]
       [--paths N] [--no-plot]

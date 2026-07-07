@@ -1,6 +1,7 @@
 """Milestone 3 gate: the real-data replay pipeline must reproduce the
 Milestone 1 synthetic engine EXACTLY when fed a synthetic chain in canonical
 quote format (loader shape -> per-day IV solve -> deltas -> shared core).
+I treat this as the gate for trusting anything replay-mode ever outputs.
 
 If these pass, replay-mode results inherit the M1 validation: the only new
 trust assumptions on real data are the quotes themselves.

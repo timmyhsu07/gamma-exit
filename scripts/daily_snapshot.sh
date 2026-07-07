@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Daily chain-snapshot pull into the write-once cache (decision 15A: start
-# accumulating free yfinance snapshots now; they become a validation slice
-# for the paid historical data later).
+# Daily chain-snapshot pull into the write-once cache. Free yfinance
+# snapshots accumulated now become a validation slice to cross-check the
+# paid historical data against later.
 #
 # MUST run during US market hours (Mon-Fri, 9:30-16:00 ET): after hours
 # Yahoo zeroes bid/ask and the snapshot has no tradable mids.

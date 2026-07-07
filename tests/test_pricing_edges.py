@@ -1,4 +1,4 @@
-"""Degenerate-branch coverage for the pricing layer (decision 8A): the grid
+"""Degenerate-branch coverage for the pricing layer: the grid
 replay hits t=0 and callers may pass sigma=0; those limits must be exact, and
 bad `kind` strings must fail loudly."""
 

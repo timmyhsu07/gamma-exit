@@ -1,8 +1,8 @@
-# Baseline experiment config — the single source of truth for run parameters
-# (eng-review decision 2A). Loaded/validated by gamma_exit.config.load_config;
-# every result artifact must log this config + the git commit hash.
+# Baseline experiment config — the single source of truth for run parameters.
+# Loaded/validated by gamma_exit.config.load_config; every result artifact
+# logs this config + the git commit hash so results stay reproducible.
 #
-# TIME BASIS: trading-day years, 252/yr everywhere (decision 3A) — see
+# TIME BASIS: trading-day years, 252/yr everywhere — see
 # src/gamma_exit/conventions.py. Vols and T are trading-basis.
 
 experiment:
@@ -13,7 +13,7 @@ data:
   provider: yfinance          # yfinance | thetadata | optionmetrics (readers deferred, D3)
   cache_root: cache
   # ^SPX: European-style index options, no discrete-dividend/early-exercise
-  # noise in the delta-hedge accounting (decision 14A). SPY kept as a
+  # noise in the delta-hedge accounting. SPY kept as a
   # cross-check universe; ^XSP is the small-notional SPX variant if needed.
   universe: ["^SPX", "SPY"]
   start: 2024-01-01
@@ -35,7 +35,7 @@ quotes:
 
 costs:
   # Every backtest runs at ALL levels; results reported per level (hard rule).
-  # Two documented cost vocabularies (decision 17A):
+  # Two cost vocabularies, both used deliberately:
   #   option_spread_frac    fraction of the OBSERVED half-spread paid on
   #                         option entry/exit in replay mode (0 / 0.5 / 1.0)
   #   share_cost_per_share  dollars per share traded on hedge rebalances;
@@ -49,13 +49,13 @@ vol:
   forecast: {model: ewma, lambda: 0.94}     # CAUSAL only — policies may use
   realized: {estimator: close_to_close}     # EX-POST only — oracle/attribution
 
-# Entry protocols (decision 13A): pre-registered BEFORE any real-data run so
+# Entry protocols: pre-registered BEFORE any real-data run so
 # entry selection can never be quietly fit to the exits that looked good.
 entries:
   - unconditional           # control: enter every eligible position
   - forecast_rv_gt_iv       # causal gate: EWMA forecast vol > entry IV
 
-# Milestone 4 exits. This is the PRE-REGISTERED policy grid (TD-3): variants
+# Exit policies. This is the PRE-REGISTERED policy grid: variants
 # and their parameters are declared here BEFORE real-data runs; results are
 # reported for the whole grid, never for a post-hoc winner.
 policies:

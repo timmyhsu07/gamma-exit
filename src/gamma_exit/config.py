@@ -1,4 +1,4 @@
-"""Typed, validated experiment config (eng-review decision 2A).
+"""Typed, validated experiment config.
 
 The YAML in configs/ is the single source of truth for run parameters; code
 never carries its own copy of a number that lives here. `extra="forbid"`

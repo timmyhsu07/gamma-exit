@@ -1,4 +1,4 @@
-"""Exit-policy interface with causality enforced BY CONSTRUCTION (decision 4A).
+"""Exit-policy interface with causality enforced BY CONSTRUCTION.
 
 A causal policy never touches a data frame. The backtest runner builds one
 frozen `PositionState` per trading day containing only what a trader could
