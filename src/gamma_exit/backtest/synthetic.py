@@ -38,6 +38,7 @@ class Scenario:
     sigma_iv: float  # constant marking/implied vol
     moneyness: float = 1.0  # S0 / K at entry
     n_days: int = 126  # sessions entry -> expiry
+    kind: str = "call"  # "call" | "put" -- puts must flow end-to-end too
 
 
 # Paper-style scenario set: vol gap and drift are the two axes that decide
@@ -51,30 +52,21 @@ PAPER_SCENARIOS: tuple[Scenario, ...] = (
 )
 
 
-def synthetic_quotes(
-    n_days: int = 126,
-    s0: float = 100.0,
-    k: float = 100.0,
+def quotes_from_path(
+    path: np.ndarray,
+    k: float,
     kind: str = "call",
-    sigma_iv=0.20,  # scalar, or array of length n_days+1 (per-day marking vol)
-    sigma_real: float = 0.30,
-    mu: float = 0.06,
+    sigma_iv=0.20,  # scalar, or array of length len(path) (per-day marking vol)
     r: float = 0.02,
     q: float = 0.0,
     spread: float = 0.02,
-    seed: int = 314,
     start: date = date(2026, 1, 5),  # a Monday
-):
-    """(quotes frame, PositionSpec entry->expiry, path row vector).
-
-    Consecutive business days; mid = BS(sigma_iv) mark on an exact GBM path
-    with true vol sigma_real. The M3 equivalence gate rests on this frame
-    reproducing the synthetic engine exactly.
-    """
+) -> tuple[pd.DataFrame, PositionSpec]:
+    """Canonical quote frame for an ARBITRARY spot path (piecewise-vol worlds,
+    stress paths): consecutive business days, mid = BS(sigma_iv) mark, expiry
+    on the final day. Returns (quotes, PositionSpec entry->expiry)."""
+    n_days = len(path) - 1
     dates = pd.bdate_range(start, periods=n_days + 1).date
-    t_years = n_days / TRADING_DAYS_PER_YEAR
-    path = simulate_gbm_paths(s0, mu, sigma_real, t_years, n_days, 1, seed)[0]
-
     tte = (n_days - np.arange(n_days + 1)) / TRADING_DAYS_PER_YEAR
     iv = np.broadcast_to(np.asarray(sigma_iv, dtype=float), (n_days + 1,))
     mid = np.array(
@@ -98,6 +90,34 @@ def synthetic_quotes(
         strike=k,
         kind=kind,  # type: ignore[arg-type]
         entry_date=dates[0],
+    )
+    return quotes, spec
+
+
+def synthetic_quotes(
+    n_days: int = 126,
+    s0: float = 100.0,
+    k: float = 100.0,
+    kind: str = "call",
+    sigma_iv=0.20,  # scalar, or array of length n_days+1 (per-day marking vol)
+    sigma_real: float = 0.30,
+    mu: float = 0.06,
+    r: float = 0.02,
+    q: float = 0.0,
+    spread: float = 0.02,
+    seed: int = 314,
+    start: date = date(2026, 1, 5),  # a Monday
+):
+    """(quotes frame, PositionSpec entry->expiry, path row vector).
+
+    Consecutive business days; mid = BS(sigma_iv) mark on an exact GBM path
+    with true vol sigma_real. The M3 equivalence gate rests on this frame
+    reproducing the synthetic engine exactly.
+    """
+    t_years = n_days / TRADING_DAYS_PER_YEAR
+    path = simulate_gbm_paths(s0, mu, sigma_real, t_years, n_days, 1, seed)[0]
+    quotes, spec = quotes_from_path(
+        path, k, kind=kind, sigma_iv=sigma_iv, r=r, q=q, spread=spread, start=start
     )
     return quotes, spec, path[None, :]
 
@@ -150,6 +170,7 @@ class SyntheticSource:
                     n_days=sc.n_days,
                     s0=self.s0,
                     k=self.s0 / sc.moneyness,
+                    kind=sc.kind,
                     sigma_iv=sc.sigma_iv,
                     sigma_real=sc.sigma_real,
                     mu=sc.mu,

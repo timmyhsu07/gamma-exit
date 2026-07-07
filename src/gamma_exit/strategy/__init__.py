@@ -57,4 +57,13 @@ def make_policies(names: list[str]) -> list[ExitPolicy]:
         if base not in _FACTORIES:
             raise ValueError(f"unknown policy {spec!r}; known: {sorted(_FACTORIES)}")
         policies.append(_FACTORIES[base](arg))
+    # duplicate names would silently merge in the results pivot -- refuse
+    seen: dict[str, str] = {}
+    for spec, pol in zip([s for s in names if s != "oracle"], policies):
+        if pol.name in seen:
+            raise ValueError(
+                f"duplicate policy name {pol.name!r} from specs "
+                f"{seen[pol.name]!r} and {spec!r}"
+            )
+        seen[pol.name] = spec
     return policies
