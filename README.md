@@ -34,27 +34,52 @@ dPnL ≈ ½ · Γ · S² · (σ_realized² − σ_implied²) · dt
   IV-solver tolerance — so real-data results inherit the M1 validation and
   the only new trust assumption is the quotes themselves. Runs on real
   vendor data the day TD-1 lands (schema drop-in).
-- Milestones 4–6 (policies + quarantined oracle, walk-forward backtest,
-  paper-figure reproduction): not started.
+- **Milestone 4 — DONE**: frozen `PositionState` + `ExitPolicy` interface
+  (causality by construction, decision 4A), benchmark policies
+  (hold-to-expiry, fixed-time), causal policies (theta/gamma threshold,
+  trailing stop, vol regime) consuming ONLY the causal forecast, and the
+  **quarantined oracle** (ex-post argmax; not an ExitPolicy, not registrable,
+  dominance asserted by tests).
+- **Milestone 5 — DONE**: `backtest/runner.py` runs every position × entry
+  protocol × policy × cost level, writes parquet results with a config+commit
+  sidecar; `analytics/metrics.py` reports the study's headline number —
+  **capture fraction** of the oracle's edge over hold — with entry-date
+  cluster-bootstrap CIs (TD-3); `analytics/regimes.py` tags vol/drift regimes.
+- **Milestone 6 — DONE on synthetic worlds**: `analytics/figures.py`
+  regenerates the paper's Figures 1–3 with the validated engine
+  (`reports/fig*.png`). Fig 1 shows the paper's central claim breaking: P&L
+  varies along the vol-gap axis and is flat along drift. Real-data versions
+  run through the same code the day TD-1 data lands.
 
-## Setup
+## Quickstart
 
 ```bash
-uv sync --dev            # creates ./.venv and installs everything
+# 1. install (any machine with uv; creates ./.venv from uv.lock)
+uv sync --dev
 source .venv/bin/activate
-```
 
-## Run things
+# 2. prove the math before trusting anything (the M1/M3 gates, ~12 s)
+pytest
 
-```bash
-pytest                                        # full validation suite (~5 s)
-python -m gamma_exit.validation.harness       # identity-convergence table + plot
-python -m gamma_exit.data.snapshot            # live demo, ^SPX from config
+# 3. see the identity convergence with your own eyes
+python -m gamma_exit.validation.harness            # table + reports/*.png
+
+# 4. run the full backtest on synthetic paper-style scenarios
+python -m gamma_exit.backtest.runner --positions-per-scenario 30
+#    -> results/results_<stamp>.parquet + .meta.json (config + git commit)
+#    -> per-policy summary incl. CAPTURE FRACTION with bootstrap CIs
+
+# 5. regenerate the paper's Figures 1-3 with the validated engine
+python -m gamma_exit.analytics.figures             # reports/fig{1,2,3}_*.png
+
+# 6. live data path (needs network; market hours for tradable mids)
+python -m gamma_exit.data.snapshot                 # ^SPX chain -> cache/
 ```
 
 Everything takes `--config` (default `configs/baseline.yaml`) — the YAML is
-the single source of truth for seeds, rates, universe, quote filters, and
-cost levels; code carries no copies of those numbers.
+the single source of truth for seeds, rates, universe, quote filters, cost
+levels, and the **pre-registered policy grid**; code carries no copies of
+those numbers.
 
 To accumulate daily chain snapshots automatically (they become a validation
 slice against the paid historical data later), see `scripts/daily_snapshot.sh`
@@ -142,18 +167,36 @@ overwrite — that is the point).
 6. **Per-share units, one option on one share.** Contract multipliers (100x)
    and position sizing are the M5 runner's job.
 
+## Milestone 4–6 assumptions & known caveats
+
+1. **Same-close execution**: decisions read the close and trade the close —
+   the standard daily-backtest convention; its optimism is shared equally by
+   every policy AND the oracle, so capture fractions are internally fair.
+2. **The synthetic finding is a finding**: in constant-vol-gap GBM worlds,
+   every day of a σ_real>σ_IV position has positive expected P&L, so the
+   causal-optimal action is to hold — early-exit rules SHOULD lose there, and
+   they do (negative capture). The oracle's +0.2 mean edge over hold is pure
+   ex-post path selection. Causal exit rules can only earn positive capture
+   in worlds where the vol edge decays/flips mid-life — i.e., on real data
+   (or a regime-switching synthetic world, a natural extension).
+3. **Policy parameters are pre-registered** in `configs/baseline.yaml`, not
+   tuned on results; the whole grid gets reported, never a post-hoc winner.
+4. **FixedTime's 0.79 default** comes from the paper's oracle mean stop —
+   information a trader wouldn't have; treat it as a benchmark, not a rule.
+
 ## Layout
 
 ```
 src/gamma_exit/
 ├── conventions.py  THE time basis: trading-day years, 252/yr (decision 3A)
 ├── config.py       typed loader for configs/*.yaml (single source of truth)
+├── plotstyle.py    shared chart tokens (dataviz palette) + policy colors
 ├── pricing/      BS price, IV solver, Greeks (QuantLib-validated)
-├── pnl/          shared self-financing accounting core + synthetic adapter
+├── pnl/          shared accounting core + synthetic adapter + replay adapter
 ├── vol/          realized (EX-POST ONLY) vs forecast (CAUSAL ONLY)
 ├── data/         schema, write-once cache + quarantine, providers (yfinance)
-├── strategy/     exit policies incl. quarantined oracle (M4)
-├── backtest/     walk-forward runner (M5)
-├── analytics/    metrics, regimes (M5)
+├── strategy/     PositionState/ExitPolicy, benchmarks, causal, ORACLE (quarantined)
+├── backtest/     synthetic position source + walk-forward runner
+├── analytics/    capture-fraction metrics + bootstrap CIs, regimes, figures
 └── validation/   synthetic reconciliation harness (M1 gate)
 ```

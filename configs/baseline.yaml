@@ -55,12 +55,20 @@ entries:
   - unconditional           # control: enter every eligible position
   - forecast_rv_gt_iv       # causal gate: EWMA forecast vol > entry IV
 
-policies:                   # Milestone 4 exits
+# Milestone 4 exits. This is the PRE-REGISTERED policy grid (TD-3): variants
+# and their parameters are declared here BEFORE real-data runs; results are
+# reported for the whole grid, never for a post-hoc winner.
+policies:
   - hold_to_expiry
-  - fixed_time
+  - fixed_time              # 0.79 = paper's mean oracle stop time
+  - fixed_time:0.50
   - oracle                  # NON-TRADABLE upper bound, quarantined
-  - theta_gamma_threshold
-  - trailing_stop
+  - theta_gamma_threshold   # 1.00 = full-rent bar (income covers all of theta)
+  - theta_gamma_threshold:0.75
+  - trailing_stop           # give back 0.50 of entry premium from peak
+  - trailing_stop:0.20
+  - vol_regime              # exit when forecast < 1.00 x entry IV
+  - vol_regime:0.85
 
 # Synthetic validation scenario for validation/harness (Milestone 1 gate).
 validation:

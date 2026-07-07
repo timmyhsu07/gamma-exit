@@ -233,6 +233,15 @@ def replay_position(
     net = np.diff(pnl_path, prepend=0.0)
     residual = net - (gamma_pnl + theta_pnl + vega_pnl + carry - cost_day)
 
+    # two-sided-quote diagnostics: where an exit could actually trade
+    bid = df["bid"].to_numpy(dtype=float)
+    ask = df["ask"].to_numpy(dtype=float)
+    two_sided = np.isfinite(bid) & np.isfinite(ask) & (bid > 0) & (ask >= bid)
+    half_spread = np.where(two_sided, 0.5 * (ask - bid), np.nan)
+    tradable = quote_ok & two_sided
+    if settles_at_expiry:
+        tradable[-1] = True  # settlement needs no quote
+
     daily = pd.DataFrame(
         {
             "date": dates,
@@ -240,6 +249,8 @@ def replay_position(
             "mark": marks,
             "iv": iv,
             "stale": stale,
+            "tradable": tradable,
+            "half_spread": half_spread,
             "delta": deltas,
             "gamma_pnl": gamma_pnl,
             "theta_pnl": theta_pnl,
@@ -264,10 +275,53 @@ def replay_position(
         "stale_days": int(stale.sum()),
         "entry_spot": float(spot[0]),
         "entry_iv": float(iv[0]),
+        "entry_mark": float(marks[0]),
         "realized_vol_window": close_to_close(pd.Series(spot)),  # EX-POST only
         "pnl": float(pnl_path[-1]),
         "trading_cost": trading_cost,
+        # recorded so exit_values() reprices early exits at the SAME costs
+        "share_cost_per_share": share_cost_per_share,
+        "option_spread_frac": option_spread_frac,
     }
     return ReplayResult(
         daily=daily, pnl=float(pnl_path[-1]), trading_cost=trading_cost, summary=summary
     )
+
+
+def exit_values(result: ReplayResult) -> tuple[np.ndarray, np.ndarray]:
+    """Realizable P&L of exiting at each day of a HOLD-TO-EXPIRY replay.
+
+    Returns (values, executable): values[e] is the cost-adjusted portfolio
+    value if the position were closed at day e's close -- sell the option at
+    mid minus the spread charge, unwind the hedge shares held into day e --
+    and executable[e] says whether that exit could actually trade (two-sided
+    quote; day 0 never, the final settlement day always).
+
+    Derivation from the replayed path: cum_net[e] already reflects day e's
+    REBALANCE cost, which an exiting trader would not pay; add it back, then
+    charge the full hedge unwind and the option exit spread. Verified in
+    tests against an explicit replay with exit_date=e (exact equality).
+    """
+    d = result.daily
+    n = len(d)
+    frac = result.summary["option_spread_frac"]
+    share_cost = result.summary["share_cost_per_share"]
+
+    cum = d["cum_net"].to_numpy()
+    cost = d["cost"].to_numpy()
+    delta = d["delta"].to_numpy()
+    hs = d["half_spread"].to_numpy()
+    tradable = d["tradable"].to_numpy(dtype=bool)
+
+    values = np.full(n, np.nan)
+    executable = tradable.copy()
+    executable[0] = False  # cannot exit at the entry close
+    interior = np.arange(1, n - 1)
+    values[interior] = (
+        cum[interior]
+        + cost[interior]
+        - np.abs(delta[interior - 1]) * share_cost
+        - frac * hs[interior]
+    )
+    values[-1] = result.pnl if executable[-1] else np.nan
+    return values, executable

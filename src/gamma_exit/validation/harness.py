@@ -30,16 +30,11 @@ from gamma_exit.pnl.engine import (
     simulate_gbm_paths,
 )
 
-FREQS = (12, 52, 252, 1008, 2520)
+from gamma_exit.plotstyle import BASELINE, GRID, INK, MUTED, SERIES, SURFACE
 
-# chart tokens from the reference dataviz palette (light mode)
-INK = "#0b0b0b"
-MUTED = "#898781"
-GRID = "#e1e0d9"
-BASELINE = "#c3c2b7"
-SURFACE = "#fcfcfb"
-SERIES_1 = "#2a78d6"  # blue
-SERIES_2 = "#1baf7a"  # aqua
+FREQS = (12, 52, 252, 1008, 2520)
+SERIES_1 = SERIES[1]  # blue
+SERIES_2 = SERIES[2]  # aqua
 
 
 def _run(cfg: Config, mu: float, n_steps: int, n_paths: int):
