@@ -1,5 +1,7 @@
 # gamma-exit
 
+[![ci](https://github.com/timmyhsu07/gamma-exit/actions/workflows/ci.yml/badge.svg)](https://github.com/timmyhsu07/gamma-exit/actions/workflows/ci.yml)
+
 When should you close a delta-hedged long option position?
 
 A delta-hedged long option is a bet that realized volatility will beat the
