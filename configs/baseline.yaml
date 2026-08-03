@@ -11,7 +11,7 @@ experiment:
 
 data:
   provider: yfinance          # yfinance | thetadata | optionmetrics (readers deferred, D3)
-  cache_root: cache
+  cache_root: local/cache
   # ^SPX: European-style index options, no discrete-dividend/early-exercise
   # noise in the delta-hedge accounting. SPY kept as a
   # cross-check universe; ^XSP is the small-notional SPX variant if needed.

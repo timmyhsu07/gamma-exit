@@ -21,7 +21,7 @@ class CacheKeyError(ValueError):
 
 
 class WriteOnceCache:
-    def __init__(self, root: str | Path = "cache") -> None:
+    def __init__(self, root: str | Path = "local/cache") -> None:
         self.root = Path(root)
 
     def path_for(self, dataset: str, key: str) -> Path:

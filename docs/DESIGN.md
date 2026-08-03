@@ -124,3 +124,22 @@ round-trips including vega-degenerate corners.
 Next: historical chains (OptionMetrics/WRDS or ThetaData, see `TODOS.md`), then
 the same pipeline on real SPX positions, where the regime-shift capture result
 faces its real test.
+
+## Where things live on disk
+
+Tracked in git: `src/`, `tests/`, `configs/`, `scripts/`, `docs/` (including
+`docs/figures/`, since the README embeds those PNGs).
+
+Not tracked, machine-local, all under `local/`:
+
+```
+local/cache/     raw provider pulls, write-once and immutable
+  chains/<TICKER>/<UTC timestamp>.parquet     option-chain snapshots
+  underlying/<TICKER>/<start>_<end>.parquet   daily bars
+local/results/   backtest output parquet + .meta.json (config + git commit)
+local/reports/   generated figures
+```
+
+One gitignore entry (`local/`) covers all of it. Nothing under `local/` is
+needed to run the test suite or reproduce the headline numbers; both regenerate
+from seeds in `configs/baseline.yaml`.

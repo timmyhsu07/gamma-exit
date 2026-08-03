@@ -1,7 +1,7 @@
 """Milestone 6: reproduce the source paper's Figures 1-3 with OUR validated
 accounting -- and show where its story survives transaction costs.
 
-Three figures, written to reports/:
+Three figures, written to local/reports/:
 
 fig1_surfaces.png   Paper Fig 1 rebuilt as heatmaps (single axis, diverging
                     color, no 3D theatrics): mean delta-hedged P&L over the
@@ -20,7 +20,7 @@ fig3_summary.png    Paper Fig 3 style, upgraded to the study's real question:
                     x cost level (the headline panel), stop-time
                     distributions, win rates.
 
-Run:  python -m gamma_exit.analytics.figures [--results results/xxx.parquet]
+Run:  python -m gamma_exit.analytics.figures [--results local/results/xxx.parquet]
       (no --results: runs a fresh synthetic backtest first)
 """
 
@@ -313,7 +313,7 @@ def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--config", default=str(DEFAULT_CONFIG))
     ap.add_argument("--results", default=None, help="parquet from backtest.runner")
-    ap.add_argument("--out-dir", default="reports")
+    ap.add_argument("--out-dir", default="local/reports")
     ap.add_argument("--positions-per-scenario", type=int, default=25)
     ap.add_argument("--skip-fig1", action="store_true", help="fig1 is the slow one")
     args = ap.parse_args()
@@ -332,7 +332,7 @@ def main() -> None:
             r=cfg.rates.risk_free, q=cfg.rates.dividend_yield,
             base_seed=cfg.experiment.seed,
         )
-        results = run(cfg, source, out_dir="results")
+        results = run(cfg, source, out_dir="local/results")
 
     if not args.skip_fig1:
         fig1_surfaces(out / "fig1_surfaces.png", r=cfg.rates.risk_free,

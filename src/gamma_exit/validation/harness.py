@@ -13,7 +13,7 @@ frequencies are a harness detail, not experiment config.
 
 Run:  python -m gamma_exit.validation.harness [--config configs/baseline.yaml]
       [--paths N] [--no-plot]
-Writes reports/pnl_identity_convergence.png unless --no-plot.
+Writes local/reports/pnl_identity_convergence.png unless --no-plot.
 """
 
 from __future__ import annotations
@@ -183,7 +183,7 @@ def main() -> None:
     drift = drift_sweep(cfg, n_paths)
     print_tables(cfg, conv, drift)
     if not args.no_plot:
-        plot_convergence(conv, Path("reports/pnl_identity_convergence.png"))
+        plot_convergence(conv, Path("local/reports/pnl_identity_convergence.png"))
 
 
 if __name__ == "__main__":

@@ -268,7 +268,7 @@ def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--config", default=str(DEFAULT_CONFIG))
     ap.add_argument("--positions-per-scenario", type=int, default=40)
-    ap.add_argument("--out", default="results")
+    ap.add_argument("--out", default="local/results")
     args = ap.parse_args()
 
     cfg = load_config(args.config)
