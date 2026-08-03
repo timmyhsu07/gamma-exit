@@ -2,11 +2,11 @@
 
 Generates what a perfect vendor would have recorded -- canonical quote
 frames (mid = BS(sigma_iv) marks, bid/ask around them) plus pre-entry
-underlying history for the causal forecast -- so the ENTIRE M4-M6 pipeline
+underlying history for the causal forecast -- so the ENTIRE pipeline
 (states -> policies -> oracle -> metrics -> figures) runs and is tested
 before paid historical data exists. Scenario definitions mirror the source
 paper's Monte Carlo study (baseline / high vol / low vol / bull / bear) so
-M6 can reproduce its comparisons with our validated accounting.
+the figures can reproduce its comparisons with our validated accounting.
 
 Real data drops in by replacing this source with CachedChainSource; nothing
 downstream changes.
@@ -111,7 +111,7 @@ def synthetic_quotes(
     """(quotes frame, PositionSpec entry->expiry, path row vector).
 
     Consecutive business days; mid = BS(sigma_iv) mark on an exact GBM path
-    with true vol sigma_real. The M3 equivalence gate rests on this frame
+    with true vol sigma_real. The equivalence gate rests on this frame
     reproducing the synthetic engine exactly.
     """
     t_years = n_days / TRADING_DAYS_PER_YEAR

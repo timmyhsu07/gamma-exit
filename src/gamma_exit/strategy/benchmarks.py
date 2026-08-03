@@ -24,7 +24,7 @@ class FixedTime(ExitPolicy):
     The paper's 'Fixed-Time' benchmark uses the mean of the ORACLE's stop
     times (~0.79 of lifetime in its Table 3) -- information a trader would
     not have, but a defensible static rule to benchmark against. The
-    fraction is a constructor parameter so M6 can also fit it on a training
+    fraction is a constructor parameter so it can also be fit on a training
     split and apply it out-of-sample (walk-forward honest version).
     """
 

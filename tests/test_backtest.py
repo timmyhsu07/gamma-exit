@@ -1,4 +1,4 @@
-"""Milestone 5 gate: exit accounting is exact, the oracle is a true ceiling,
+"""Backtest gate: exit accounting is exact, the oracle is a true ceiling,
 the runner produces a coherent results panel, and metrics behave.
 """
 

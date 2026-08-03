@@ -1,4 +1,4 @@
-"""Smoke tests: every M6 figure renders to a non-trivial PNG on tiny inputs."""
+"""Smoke tests: every figure renders to a non-trivial PNG on tiny inputs."""
 
 from gamma_exit.analytics.figures import fig1_surfaces, fig2_positions, fig3_summary
 from gamma_exit.backtest.runner import run

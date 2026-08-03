@@ -1,1 +1,1 @@
-"""Synthetic reconciliation harness -- the Milestone 1 gate. See harness.py."""
+"""Synthetic reconciliation harness -- the identity gate. See harness.py."""

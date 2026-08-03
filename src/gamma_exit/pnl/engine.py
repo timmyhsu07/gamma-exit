@@ -1,12 +1,12 @@
 """Delta-hedged P&L: one self-financing accounting core, two thin adapters.
 
 House rule: the accounting loop below is the ONLY code in this
-project that turns positions into P&L. Synthetic mode (Milestone 1) feeds it
-Black-Scholes marks on simulated paths; replay mode (Milestone 3) feeds it
-observed mid quotes on real paths. The Milestone 1 identity tests therefore
-validate the exact loop that produces real-data results.
+project that turns positions into P&L. Synthetic mode feeds it Black-Scholes
+marks on simulated paths; replay mode feeds it observed mid quotes on real
+paths. The identity tests therefore validate the exact loop that produces
+real-data results.
 
-    SYNTHETIC adapter                REPLAY adapter (M3)
+    SYNTHETIC adapter                REPLAY adapter
     marks = BS(sigma_iv)             marks = observed mids
     deltas = BS-delta(sigma_iv)      deltas = BS-delta(day's IV)
             \\                          /
@@ -16,7 +16,7 @@ validate the exact loop that produces real-data results.
              v
         HedgeResult (pnl_path, pnl, trading_cost)
 
-The identity being tested (Milestone 1 gate, tests/test_pnl_identity.py)
+The identity being tested (gate 1, tests/test_pnl_identity.py)
 ------------------------------------------------------------------------
 With the true path following dS = mu S dt + sigma_real S dW and the hedge run
 at sigma_iv, continuous-time self-financing accounting gives, PATHWISE:

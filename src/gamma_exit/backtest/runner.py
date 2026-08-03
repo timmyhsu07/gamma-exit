@@ -1,4 +1,4 @@
-"""Milestone 5: run every position through every exit policy at every cost
+"""Run every position through every exit policy at every cost
 level, with the no-look-ahead guarantee enforced structurally.
 
 Per position the flow is:

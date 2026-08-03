@@ -1,4 +1,4 @@
-"""Milestone 6: reproduce the source paper's Figures 1-3 with OUR validated
+"""Reproduce the source paper's Figures 1-3 with OUR validated
 accounting -- and show where its story survives transaction costs.
 
 Three figures, written to local/reports/:

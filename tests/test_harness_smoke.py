@@ -1,4 +1,4 @@
-"""Smoke test: the Milestone 1 harness CLI must run end-to-end."""
+"""Smoke test: the identity-gate harness CLI must run end-to-end."""
 
 import subprocess
 import sys

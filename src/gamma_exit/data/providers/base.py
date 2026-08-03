@@ -23,5 +23,5 @@ class Provider(ABC):
 
     def fetch_rates(self, start: date, end: date) -> pd.DataFrame:
         """Risk-free curve. Prototype uses a constant from config; real curve
-        sourcing (FRED / OptionMetrics zero curve) lands with Milestone 2."""
+        sourcing (FRED / OptionMetrics zero curve) lands with real data."""
         raise NotImplementedError(f"{self.name} does not provide rates")

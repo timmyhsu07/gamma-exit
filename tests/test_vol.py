@@ -1,6 +1,6 @@
 """The vol estimators are the input signals for every causal
 policy and for P&L attribution -- verify they compute the right number, using
-the same trick as the Milestone 1 gate: synthetic GBM with KNOWN volatility.
+the same trick as the identity gate: synthetic GBM with KNOWN volatility.
 """
 
 import numpy as np

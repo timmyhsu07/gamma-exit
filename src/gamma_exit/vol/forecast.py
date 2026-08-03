@@ -1,7 +1,7 @@
 """CAUSAL volatility forecasts -- the only vol a tradable exit policy may use.
 
 Every function here maps a history of returns UP TO time t into a forecast
-usable AT time t. GARCH / HAR arrive with Milestone 4.
+usable AT time t. EWMA is the only estimator implemented.
 """
 
 from __future__ import annotations

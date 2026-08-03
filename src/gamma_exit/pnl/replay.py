@@ -1,8 +1,8 @@
-"""Milestone 3: replay a delta-hedged position through OBSERVED option quotes.
+"""Replay a delta-hedged position through OBSERVED option quotes.
 
 This is the real-data adapter for the validated accounting core:
 
-    cache (canonical chains)          synthetic engine (M1)
+    cache (canonical chains)          synthetic engine
             |                                 |
     load_option_history()                     |
             v                                 v
@@ -62,7 +62,7 @@ QUOTE_COLUMNS = ["date", "spot", "bid", "ask", "mid", "volume", "open_interest"]
 
 @dataclass(frozen=True)
 class PositionSpec:
-    """One long-option position to replay (selection happens upstream, M5)."""
+    """One long-option position to replay (selection happens in the runner)."""
 
     underlying: str
     expiry: date

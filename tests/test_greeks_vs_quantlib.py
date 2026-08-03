@@ -1,7 +1,7 @@
 """Reconcile our analytic BS price and Greeks against QuantLib.
 
 QuantLib is an independent implementation; agreement to tight tolerance on a
-grid of moneyness / maturity / vol / rates is the Milestone 1 pricing gate.
+grid of moneyness / maturity / vol / rates is the pricing gate.
 """
 
 import numpy as np

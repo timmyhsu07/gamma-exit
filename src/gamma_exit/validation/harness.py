@@ -1,4 +1,4 @@
-"""Milestone 1 validation harness.
+"""Identity-gate validation harness.
 
 Runs the synthetic GBM delta-hedge replay across rehedge frequencies and
 reports convergence of the discrete-hedge P&L to the pathwise identity

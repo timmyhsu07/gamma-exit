@@ -1,7 +1,7 @@
 """Causal exit policies -- the research contribution lives here.
 
 Each rule consumes ONLY the frozen PositionState (past P&L, today's Greeks,
-and the causal forecast vol). The question M5/M6 answer: what fraction of
+and the causal forecast vol). The question the backtest answers: what fraction of
 the oracle's (non-tradable) edge over hold-to-expiry do these capture, net
 of costs?
 

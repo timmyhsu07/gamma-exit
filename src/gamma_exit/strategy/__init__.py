@@ -1,4 +1,4 @@
-"""Exit policies (Milestone 4).
+"""Exit policies.
 
 - base.py        frozen PositionState + ExitPolicy ABC (causality by
                  construction: the state object contains no future data)

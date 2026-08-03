@@ -70,7 +70,7 @@ policies:
   - vol_regime              # exit when forecast < 1.00 x entry IV
   - vol_regime:0.85
 
-# Synthetic validation scenario for validation/harness (Milestone 1 gate).
+# Synthetic validation scenario for validation/harness (the identity gate).
 validation:
   s0: 100.0
   strike: 100.0

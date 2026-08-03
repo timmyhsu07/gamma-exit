@@ -8,7 +8,7 @@ Layer map (see docs/DESIGN.md):
 - strategy/   exit policies; oracle.py is quarantined and NON-TRADABLE
 - backtest/   orchestration (walk-forward, no-look-ahead)
 - analytics/  metrics and regime tagging
-- validation/ synthetic reconciliation harness (Milestone 1 gate)
+- validation/ synthetic reconciliation harness (the identity gate)
 """
 
 __version__ = "0.1.0"

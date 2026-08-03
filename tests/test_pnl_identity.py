@@ -1,4 +1,4 @@
-"""Milestone 1 gate: the self-financing accounting core must reconcile with the
+"""Gate 1: the self-financing accounting core must reconcile with the
 pathwise gamma-vega identity
 
     X_T = int_0^T e^{r(T-u)} 1/2 Gamma_iv S_u^2 (sigma_real^2 - sigma_iv^2) du

@@ -1,2 +1,3 @@
-"""Result analytics (Milestone 5): mean P&L, Sharpe, win rate, improvement
-over hold-to-expiry, stopping-time distributions, vol/drift regime tagging."""
+"""Result analytics: mean P&L, win rate, improvement over hold-to-expiry, and
+capture of the oracle's edge with cluster-bootstrap CIs, plus vol/drift regime
+tagging."""

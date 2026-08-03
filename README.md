@@ -69,7 +69,7 @@ source .venv/bin/activate
 # check the math before trusting anything (~20 s)
 pytest
 
-# see the M1 gate directly: discrete hedging converging to the identity
+# see gate 1 directly: discrete hedging converging to the identity
 python -m gamma_exit.validation.harness
 
 # full backtest: 5 regimes x 10 pre-registered policies x 3 cost levels
