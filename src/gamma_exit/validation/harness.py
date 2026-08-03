@@ -150,7 +150,7 @@ def plot_convergence(conv: list[dict], out_path: Path) -> None:
     ax.set_xlabel("rehedges per year", color=MUTED)
     ax.set_ylabel("dollars (per 1 option on 100 shares eq.)", color=MUTED)
     ax.set_title(
-        "Discrete delta-hedge P&L converges to the gamma–vega identity",
+        "Discrete delta-hedge P&L converges to the gamma-vega identity",
         color=INK, fontsize=11, loc="left",
     )
     ax.grid(True, which="major", color=GRID, lw=0.8)

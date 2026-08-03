@@ -1,8 +1,8 @@
-# Baseline experiment config — the single source of truth for run parameters.
+# Baseline experiment config: the single source of truth for run parameters.
 # Loaded/validated by gamma_exit.config.load_config; every result artifact
 # logs this config + the git commit hash so results stay reproducible.
 #
-# TIME BASIS: trading-day years, 252/yr everywhere — see
+# TIME BASIS: trading-day years, 252/yr everywhere. See
 # src/gamma_exit/conventions.py. Vols and T are trading-basis.
 
 experiment:
@@ -46,8 +46,8 @@ costs:
     - {name: full_spread, option_spread_frac: 1.0, share_cost_per_share: 0.01}
 
 vol:
-  forecast: {model: ewma, lambda: 0.94}     # CAUSAL only — policies may use
-  realized: {estimator: close_to_close}     # EX-POST only — oracle/attribution
+  forecast: {model: ewma, lambda: 0.94}     # CAUSAL only: policies may use
+  realized: {estimator: close_to_close}     # EX-POST only: oracle/attribution
 
 # Entry protocols: pre-registered BEFORE any real-data run so
 # entry selection can never be quietly fit to the exits that looked good.

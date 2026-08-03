@@ -112,7 +112,7 @@ def fig1_surfaces(
     cbar.ax.tick_params(colors=MUTED, labelsize=8)
     cbar.outline.set_edgecolor(BASELINE)  # type: ignore[union-attr,operator]
     fig.suptitle(
-        "Delta-hedged P&L is a bet on the VOL GAP — drift barely matters\n"
+        "Delta-hedged P&L is a bet on the VOL GAP, drift barely matters\n"
         "(validated engine on GBM paths; the paper's −(μ−r)S²Γ term would tilt "
         "every panel toward the drift axis)",
         color=INK,
@@ -299,7 +299,7 @@ def fig3_summary(out_path: Path, results: pd.DataFrame) -> None:
     ax.legend(frameon=False, fontsize=7.5, labelcolor=INK)
 
     fig.suptitle(
-        "Exit-rule cross-section: the oracle is a ceiling, not a strategy — "
+        "Exit-rule cross-section: the oracle is a ceiling, not a strategy: "
         "the research question is how much of it CAUSAL rules keep, per cost level",
         color=INK, fontsize=11, x=0.06, ha="left",
     )

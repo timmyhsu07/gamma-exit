@@ -6,14 +6,14 @@ Deferred work with enough context to pick it up cold months from now.
 
 - **What:** Implement the concrete `Provider` subclass for whichever source I
   end up with, normalizing into the canonical schema.
-- **Why:** This is THE blocker for real-data results — yfinance has no
+- **Why:** This is THE blocker for real-data results. yfinance has no
   historical chains, so replay currently runs only on synthetic worlds and
   freshly accumulated snapshots.
 - **Context:** Provider ABC at `src/gamma_exit/data/providers/base.py`;
   `yfinance_provider.py` is the normalization template; cache keys are
   provider-scoped so vendors can coexist. OptionMetrics arrives as a WRDS
   export (reader over parquet/csv); ThetaData has a Python SDK. I
-  deliberately did not write readers against imagined column schemas — that
+  deliberately did not write readers against imagined column schemas; that
   work happens once a real export is in hand to test against.
 - **Blocked by:** WRDS access check via university, or paying for ThetaData.
 
@@ -25,7 +25,7 @@ Deferred work with enough context to pick it up cold months from now.
 - **Why:** ~100x throughput for full-chain IV recomputation on historical
   data.
 - **Trigger:** full-chain IV recompute exceeding ~60 s in profiling. Do not
-  swap before then — the transparent solver is easier to trust while the
+  swap before then, since the transparent solver is easier to trust while the
   pipeline itself is still being audited.
 - **Watch out:** re-verify NaN/vega-degenerate semantics match the current
   solver exactly.
@@ -46,7 +46,7 @@ Deferred work with enough context to pick it up cold months from now.
 - **What:** Simulate on a fine grid, rehedge on a coarser one (currently one
   knob controls both).
 - **Why:** Separates "how finely the world moves" from "how often the trader
-  hedges" — enables daily-hedging-on-intraday-paths studies and tightens the
+  hedges". Enables daily-hedging-on-intraday-paths studies and tightens the
   identity-integral approximation independently of hedge frequency.
 - **Context:** `simulate_gbm_paths` is already exact at any resolution; the
   change is letting the accounting core skip rebalance steps while still
